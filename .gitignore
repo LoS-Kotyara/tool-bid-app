@@ -20,6 +20,7 @@ __pycache__/
 *.so
 *.dylib
 /build/bin/
+build/bin/
 /cmd/tool-bid-app.exe
 vendor/
 
@@ -29,6 +30,7 @@ frontend/dist/
 frontend/.svelte-kit/
 cmd/frontend/
 
+frontend/package.json.md5
 frontend/vite.config.js.timestamp-*
 frontend/vite.config.ts.timestamp-*
 .npm/
@@ -41,3 +43,5 @@ build/windows/wails.exe
 *.log
 *.tmp
 *.out
+*.pdf
+

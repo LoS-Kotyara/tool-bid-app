@@ -29,70 +29,102 @@ const previewHTMLHeader = `<!DOCTYPE html>
     padding: 0;
     background: #ffffff;
   }
-  .header-grid {
+  .top-header-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 2mm;
   }
-  .header-grid td {
-    vertical-align: top;
-    padding: 2px 4px;
+  .top-header-table td {
+    vertical-align: bottom;
   }
   .bid-title {
-    font-size: 12pt;
-    font-weight: bold;
+    font-size: 10pt;
+    font-weight: normal;
     text-transform: uppercase;
+    white-space: nowrap;
+    padding-right: 8px;
+    padding-bottom: 2px;
   }
   .bid-number-underline {
-    border-bottom: 1.5px solid #000000;
+    border-bottom: 1px solid #000000;
     display: inline-block;
-    min-width: 120px;
-    padding-bottom: 1px;
+    width: 100%;
+    padding-bottom: 2px;
     font-weight: bold;
-    font-size: 11pt;
+    font-size: 10pt;
+    text-align: left;
   }
-  .dept-box {
-    border: 2px solid #000000;
-    padding: 4px 8px;
-    font-weight: bold;
+  .dept-box-container {
+    width: 75mm;
+    border: 1.2pt solid #000000;
     text-align: center;
-    font-size: 10.5pt;
-    min-width: 180px;
+    margin-left: auto;
   }
-  .meta-table {
+  .dept-box-header {
+    background-color: #d9d9d9;
+    font-size: 9pt;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-bottom: 1.2pt solid #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .dept-box-value {
+    font-size: 10.5pt;
+    font-weight: bold;
+    padding: 6px 8px;
+    min-height: 24px;
+  }
+  .signatories-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 2mm;
-    margin-bottom: 3mm;
+    margin-top: 3mm;
+    margin-bottom: 3.5mm;
   }
-  .meta-table td {
-    padding: 3px 4px;
-    vertical-align: top;
-    font-size: 9.5pt;
+  .signatories-table td {
+    border: 1px solid #000000;
+    padding: 4px 6px;
+    font-size: 9pt;
+    vertical-align: middle;
   }
-  .meta-label {
+  .sig-title {
     font-weight: bold;
+    background-color: #f2f2f2;
+    text-transform: uppercase;
     white-space: nowrap;
-    width: 22%;
   }
-  .meta-value-line {
-    border-bottom: 1px solid #777777;
-    width: 78%;
+  .sig-sign-col, .sig-phone-col {
+    color: #333333;
+    font-size: 8.5pt;
+    text-align: center;
+    white-space: nowrap;
   }
   .section-title {
-    font-size: 10.5pt;
+    font-size: 10pt;
     font-weight: bold;
-    background-color: #e9e9e9;
-    padding: 3px 6px;
-    margin-top: 3mm;
+    margin-top: 2.5mm;
     margin-bottom: 1.5mm;
-    border: 1px solid #cccccc;
-    text-transform: uppercase;
   }
-  table.items-table {
+  table.section-table, table.items-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 2mm;
+    margin-top: 1mm;
+    margin-bottom: 2.5mm;
+  }
+  table.section-table th, table.items-table th {
+    background-color: #d9d9d9;
+    border: 1px solid #000000;
+    padding: 4px 4px;
+    font-size: 9pt;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.section-table td, table.items-table td {
+    border: 1px solid #000000;
+    padding: 4px 5px;
+    font-size: 9pt;
+    vertical-align: middle;
   }
   thead {
     display: table-header-group;
@@ -100,42 +132,20 @@ const previewHTMLHeader = `<!DOCTYPE html>
   tr {
     page-break-inside: avoid;
   }
-  table.items-table th {
-    background-color: #f2f2f2;
-    border: 1px solid #000000;
-    padding: 5px 4px;
-    font-size: 9.5pt;
-    font-weight: bold;
+  .col-center {
     text-align: center;
-    vertical-align: middle;
   }
-  table.items-table td {
-    border: 1px solid #000000;
-    padding: 4px 5px;
-    font-size: 9.5pt;
-    vertical-align: middle;
+  .col-bold {
+    font-weight: bold;
   }
-  .col-num { width: 6%; text-align: center; }
-  .col-name { width: 34%; text-align: left; }
-  .col-desc { width: 44%; text-align: left; }
-  .col-unit { width: 8%; text-align: center; }
-  .col-qty { width: 8%; text-align: right; }
-  .sign-footer {
-    margin-top: 8mm;
-    width: 100%;
-    border-collapse: collapse;
-    page-break-inside: avoid;
-  }
-  .sign-footer td {
-    padding: 4px 6px;
-    font-size: 9.5pt;
-    vertical-align: bottom;
-  }
-  .sign-line {
-    border-bottom: 1px solid #000000;
-    display: block;
-    height: 14px;
-  }
+  .sec1-col-num { width: 6%; text-align: center; }
+  .sec1-col-name { width: 35%; font-weight: bold; }
+  .sec1-col-desc { width: 59%; }
+  .sec2-col-num { width: 6%; text-align: center; }
+  .sec2-col-name { width: 32%; text-align: left; }
+  .sec2-col-desc { width: 44%; text-align: left; }
+  .sec2-col-unit { width: 9%; text-align: center; }
+  .sec2-col-qty { width: 9%; text-align: center; }
 </style>
 </head>
 `

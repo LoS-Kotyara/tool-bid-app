@@ -2,72 +2,101 @@ package export
 
 const previewHTMLBody = `<body>
 <div class="page-container">
-  <table class="header-grid">
+  <!-- Верхний заголовок: Название заявки с подчеркиванием номера слева, блок подразделения справа -->
+  <table class="top-header-table">
     <tr>
-      <td style="width: 60%;">
-        <div class="bid-title">ЗАЯВКА НА ЗАКУПКУ ИНСТРУМЕНТА</div>
-        <div style="margin-top: 3px;">
-          № <span class="bid-number-underline">{{.Meta.BidNum}}</span> от <span>{{.Meta.BidDate}}</span> г.
+      <td style="width: 58%; vertical-align: bottom;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td class="bid-title">Заявка на закупку</td>
+            <td style="width: 100%; vertical-align: bottom;">
+              <span class="bid-number-underline">№{{.Meta.BidNum}} от {{.Meta.BidDate}} г.</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td style="width: 42%; vertical-align: top; text-align: right;">
+        <div class="dept-box-container">
+          <div class="dept-box-header">ПОДРАЗДЕЛЕНИЕ</div>
+          <div class="dept-box-value">{{if .Meta.Dept}}{{.Meta.Dept}}{{else}}&mdash;{{end}}</div>
         </div>
       </td>
-      <td style="width: 40%; text-align: right;">
-        <div class="dept-box">{{if .Meta.Dept}}{{.Meta.Dept}}{{else}}&mdash;{{end}}</div>
-      </td>
     </tr>
   </table>
+
+  <!-- Таблица подписантов (2 строки: Инициатор и Куратор) -->
+  <table class="signatories-table">
+    <tr>
+      <td style="width: 28%;" class="sig-title">ИНИЦИАТОР ЗАКУПКИ</td>
+      <td style="width: 28%;">{{if .Meta.InitRole}}{{.Meta.InitRole}}{{else}}&mdash;{{end}}</td>
+      <td style="width: 24%;">{{if .Meta.InitFio}}{{.Meta.InitFio}}{{else}}&mdash;{{end}}</td>
+      <td style="width: 10%;" class="sig-sign-col">Подп.</td>
+      <td style="width: 10%;" class="sig-phone-col">Конт.тел.</td>
+    </tr>
+    <tr>
+      <td class="sig-title">КУРАТОР ЗАКУПКИ</td>
+      <td>{{if .Meta.CurRole}}{{.Meta.CurRole}}{{else}}&mdash;{{end}}</td>
+      <td>{{if .Meta.CurFio}}{{.Meta.CurFio}}{{else}}&mdash;{{end}}</td>
+      <td class="sig-sign-col">Подп.</td>
+      <td class="sig-phone-col">Конт.тел.</td>
+    </tr>
+  </table>
+
+  <!-- Раздел I: Общие сведения -->
   <div class="section-title">I. Общие сведения</div>
-  <table class="meta-table">
-    <tr>
-      <td class="meta-label">Пункт назначения:</td>
-      <td class="meta-value-line">{{if .Meta.ShopName}}{{.Meta.ShopName}}{{else}}&mdash;{{end}}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Инициатор:</td>
-      <td class="meta-value-line">
-        {{if .Meta.InitRole}}{{.Meta.InitRole}}{{end}}{{if and .Meta.InitRole .Meta.InitFio}}; {{end}}{{if .Meta.InitFio}}{{.Meta.InitFio}}{{end}}
-        {{if and (not .Meta.InitRole) (not .Meta.InitFio)}}&mdash;{{end}}
-      </td>
-    </tr>
-    <tr>
-      <td class="meta-label">Куратор:</td>
-      <td class="meta-value-line">
-        {{if .Meta.CurRole}}{{.Meta.CurRole}}{{end}}{{if and .Meta.CurRole .Meta.CurFio}}; {{end}}{{if .Meta.CurFio}}{{.Meta.CurFio}}{{end}}
-        {{if and (not .Meta.CurRole) (not .Meta.CurFio)}}&mdash;{{end}}
-      </td>
-    </tr>
-    <tr>
-      <td class="meta-label">Желаемая дата:</td>
-      <td class="meta-value-line">{{if .Meta.DeliveryDate}}{{.Meta.DeliveryDate}}{{else}}&mdash;{{end}}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Цель закупки:</td>
-      <td class="meta-value-line">{{if .Meta.Purpose}}{{.Meta.Purpose}}{{else}}&mdash;{{end}}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Требования к кач.:</td>
-      <td class="meta-value-line">{{if .Meta.QualityReq}}{{.Meta.QualityReq}}{{else}}&mdash;{{end}}</td>
-    </tr>
+  <table class="section-table">
+    <thead>
+      <tr>
+        <th class="sec1-col-num">№ п/п</th>
+        <th class="sec1-col-name">Наименование пункта</th>
+        <th class="sec1-col-desc">Характеристики товара/услуги</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="col-center">1</td>
+        <td class="col-bold">{{if .Meta.ShopName}}{{.Meta.ShopName}}{{else}}&mdash;{{end}}</td>
+        <td>&mdash;</td>
+      </tr>
+      <tr>
+        <td class="col-center">2</td>
+        <td>Желаемая дата поставки</td>
+        <td>{{if .Meta.DeliveryDate}}{{.Meta.DeliveryDate}}{{else}}&mdash;{{end}}</td>
+      </tr>
+      <tr>
+        <td class="col-center">3</td>
+        <td>Требования к качеству товара, работ, услуг</td>
+        <td>{{if .Meta.QualityReq}}{{.Meta.QualityReq}}{{else}}&mdash;{{end}}</td>
+      </tr>
+      <tr>
+        <td class="col-center">4</td>
+        <td>Цель закупки</td>
+        <td>{{if .Meta.Purpose}}{{.Meta.Purpose}}{{else}}&mdash;{{end}}</td>
+      </tr>
+    </tbody>
   </table>
+
+  <!-- Раздел II: Техническая часть документации -->
   <div class="section-title">II. Техническая часть документации</div>
   <table class="items-table">
     <thead>
       <tr>
-        <th class="col-num">№ п/п</th>
-        <th class="col-name">Наименование инструмента</th>
-        <th class="col-desc">Характеристики товара</th>
-        <th class="col-unit">Ед. изм.</th>
-        <th class="col-qty">Кол-во</th>
+        <th class="sec2-col-num">№ п/п</th>
+        <th class="sec2-col-name">Наименование товара</th>
+        <th class="sec2-col-desc">Характеристики товара</th>
+        <th class="sec2-col-unit">Ед. изм.</th>
+        <th class="sec2-col-qty">Кол-во</th>
       </tr>
     </thead>
     <tbody>
       {{if .Items}}
         {{range .Items}}
         <tr>
-          <td class="col-num">{{.Num}}</td>
-          <td class="col-name">{{.Name}}</td>
-          <td class="col-desc">{{.Desc}}</td>
-          <td class="col-unit">{{.Unit}}</td>
-          <td class="col-qty">{{.Qty}}</td>
+          <td class="sec2-col-num">{{.Num}}</td>
+          <td class="sec2-col-name">{{.Name}}</td>
+          <td class="sec2-col-desc">{{.Desc}}</td>
+          <td class="sec2-col-unit">{{.Unit}}</td>
+          <td class="sec2-col-qty">{{.Qty}}</td>
         </tr>
         {{end}}
       {{else}}
@@ -78,20 +107,6 @@ const previewHTMLBody = `<body>
         </tr>
       {{end}}
     </tbody>
-  </table>
-  <table class="sign-footer">
-    <tr>
-      <td style="width: 18%; font-weight: bold;">Инициатор:</td>
-      <td style="width: 32%;">
-        <span class="sign-line"></span>
-        <div style="font-size: 8pt; text-align: center; color: #555555;">(подпись, дата)</div>
-      </td>
-      <td style="width: 18%; font-weight: bold; text-align: right;">Куратор:</td>
-      <td style="width: 32%;">
-        <span class="sign-line"></span>
-        <div style="font-size: 8pt; text-align: center; color: #555555;">(подпись, дата)</div>
-      </td>
-    </tr>
   </table>
 </div>
 </body>

@@ -190,6 +190,51 @@ func TestSignatoryTrailingSemicolons(t *testing.T) {
 	}
 }
 
+func TestItemsWithEmbeddedSemicolons(t *testing.T) {
+	input := `#85 от 03.11.2026
+Подразделение: Цех 3
+
+Паста эльборовая; 20/14; 16/12; шт.; по 2
+Сверло; D10.5; ГОСТ 10903-77; Р6М5; шт.; 5
+`
+	doc, err := parser.ParseMarkdown(input)
+	if err != nil {
+		t.Fatalf("ParseMarkdown returned error: %v", err)
+	}
+
+	if len(doc.Items) != 2 {
+		t.Fatalf("Expected 2 items, got %d", len(doc.Items))
+	}
+
+	item1 := doc.Items[0]
+	if item1.Name != "Паста эльборовая" {
+		t.Errorf("Expected Name 'Паста эльборовая', got '%s'", item1.Name)
+	}
+	if item1.Desc != "20/14; 16/12" {
+		t.Errorf("Expected Desc '20/14; 16/12', got '%s'", item1.Desc)
+	}
+	if item1.Unit != "шт." {
+		t.Errorf("Expected Unit 'шт.', got '%s'", item1.Unit)
+	}
+	if item1.Qty != "по 2" {
+		t.Errorf("Expected Qty 'по 2', got '%s'", item1.Qty)
+	}
+
+	item2 := doc.Items[1]
+	if item2.Name != "Сверло" {
+		t.Errorf("Expected Name 'Сверло', got '%s'", item2.Name)
+	}
+	if item2.Desc != "D10.5; ГОСТ 10903-77; Р6М5" {
+		t.Errorf("Expected Desc 'D10.5; ГОСТ 10903-77; Р6М5', got '%s'", item2.Desc)
+	}
+	if item2.Unit != "шт." {
+		t.Errorf("Expected Unit 'шт.', got '%s'", item2.Unit)
+	}
+	if item2.Qty != "5" {
+		t.Errorf("Expected Qty '5', got '%s'", item2.Qty)
+	}
+}
+
 func TestNormalizeQuantity(t *testing.T) {
 	tests := []struct {
 		input   string

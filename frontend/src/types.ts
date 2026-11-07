@@ -76,7 +76,7 @@ export function parseItemsFromText(text: string): ItemState[] {
       const name = parts[0].trim();
       const qty = parts[parts.length - 1].trim();
       const unit = parts[parts.length - 2].trim();
-      const desc = parts.slice(1, parts.length - 2).join(';').trim();
+      const desc = parts.slice(1, parts.length - 2).map((p) => p.trim()).join('; ');
 
       if (name) {
         items.push({

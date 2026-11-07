@@ -125,9 +125,13 @@ func ParseMarkdown(content string) (*model.Document, error) {
 		}
 
 		name := strings.TrimSpace(parts[0])
-		desc := strings.TrimSpace(parts[1])
-		unit := strings.TrimSpace(parts[2])
-		qty := strings.TrimSpace(parts[3])
+		qty := strings.TrimSpace(parts[len(parts)-1])
+		unit := strings.TrimSpace(parts[len(parts)-2])
+		descParts := make([]string, 0, len(parts)-3)
+		for _, dp := range parts[1 : len(parts)-2] {
+			descParts = append(descParts, strings.TrimSpace(dp))
+		}
+		desc := strings.Join(descParts, "; ")
 
 		if name == "" {
 			return nil, fmt.Errorf("строка %d: наименование инструмента не может быть пустым", currentLine)
