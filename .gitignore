@@ -1,0 +1,35 @@
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Go & Build Artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/build/bin/
+/cmd/tool-bid-app.exe
+vendor/
+
+# Frontend (Node / Svelte / Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.svelte-kit/
+frontend/vite.config.js.timestamp-*
+frontend/vite.config.ts.timestamp-*
+.npm/
+
+# Wails
+frontend/wailsjs/go/
+build/windows/wails.exe
+
+# Logs & Temporary files
+*.log
+*.tmp
+*.out
