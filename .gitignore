@@ -27,6 +27,8 @@ vendor/
 frontend/node_modules/
 frontend/dist/
 frontend/.svelte-kit/
+cmd/frontend/
+
 frontend/vite.config.js.timestamp-*
 frontend/vite.config.ts.timestamp-*
 .npm/
