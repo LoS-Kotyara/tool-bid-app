@@ -6,6 +6,12 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+testdata/output/
+testdata/converted_md/
+testdata/incoming_excel/
+testdata/reference_md/
+__pycache__/
+*.pyc
 
 # Go & Build Artifacts
 *.exe
