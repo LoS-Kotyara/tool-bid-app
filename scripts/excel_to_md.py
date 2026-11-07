@@ -194,10 +194,10 @@ def parse_excel_bid(filepath):
                 continue
 
         name_str = str(name_v or "").strip()
-        name_str = re.sub(r";\s*", ", ", name_str)
+        #name_str = re.sub(r";\s*", ", ", name_str)
 
         desc_str = str(desc_v or "").strip()
-        desc_str = re.sub(r";\s*", ", ", desc_str)
+        #desc_str = re.sub(r";\s*", ", ", desc_str)
 
         unit_str = str(unit_v or "шт.").strip().replace(";", "")
         
