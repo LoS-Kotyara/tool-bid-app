@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
 
   export let text: string = '';
   export let editorFont: string = 'Cascadia Code';
@@ -13,16 +13,54 @@
   const lineHeight: number = 22;
 
   let textareaEl: HTMLTextAreaElement;
+  let mirrorEl: HTMLDivElement;
   let lines: string[] = [''];
+  let lineHeights: number[] = [];
   let activeLine: number = 1;
   let scrollTop: number = 0;
+  let textareaWidth: number = 0;
+  let resizeObserver: ResizeObserver | null = null;
+  let prevText: string = '';
 
-  $: {
+  $: if (text !== prevText) {
+    prevText = text;
     lines = text.split('\n');
     if (lines.length === 0) lines = [''];
     if (activeLine > lines.length) {
       activeLine = Math.max(1, lines.length);
     }
+    updateLineHeights();
+  }
+
+  let activeLineTop: number = 0;
+  let activeLineHeight: number = lineHeight;
+
+  $: {
+    let top = 0;
+    const count = Math.min(activeLine - 1, lines.length);
+    for (let i = 0; i < count; i++) {
+      top += (lineHeights[i] || lineHeight);
+    }
+    activeLineTop = top - scrollTop;
+    activeLineHeight = lineHeights[activeLine - 1] || lineHeight;
+  }
+
+  async function updateLineHeights() {
+    if (!textareaEl) return;
+    const newWidth = textareaEl.clientWidth;
+    if (newWidth > 0 && newWidth !== textareaWidth) {
+      textareaWidth = newWidth;
+    }
+    await tick();
+    if (!mirrorEl) return;
+    const children = mirrorEl.children;
+    const len = children.length;
+    const newHeights = new Array(len);
+    for (let i = 0; i < len; i++) {
+      const h = (children[i] as HTMLElement).offsetHeight;
+      newHeights[i] = h > 0 ? h : lineHeight;
+    }
+    lineHeights = newHeights;
   }
 
   function handleInput(e: Event) {
@@ -30,6 +68,7 @@
     text = target.value;
     updateCursorLine();
     dispatch('change', text);
+    updateLineHeights();
   }
 
   function handleScroll(e: Event) {
@@ -70,23 +109,54 @@
 
   onMount(() => {
     updateCursorLine();
+    if (textareaEl) {
+      textareaWidth = textareaEl.clientWidth;
+      updateLineHeights();
+    }
+    if (typeof ResizeObserver !== 'undefined' && textareaEl) {
+      resizeObserver = new ResizeObserver(() => {
+        updateLineHeights();
+      });
+      resizeObserver.observe(textareaEl);
+    }
+  });
+
+  onDestroy(() => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
   });
 </script>
 
 <div class="editor-container" style="--editor-font: '{editorFont}', Consolas, monospace;">
   <div class="editor-gutter" style="transform: translateY(-{scrollTop}px);">
     {#each lines as _, idx}
-      <div class="gutter-num" class:active-line={idx + 1 === activeLine}>
+      <div
+        class="gutter-num"
+        class:active-line={idx + 1 === activeLine}
+        style="height: {lineHeights[idx] || lineHeight}px; line-height: {lineHeight}px;"
+      >
         {idx + 1}
       </div>
     {/each}
   </div>
 
   <div class="editor-body">
+    <div
+      class="mirror-container"
+      bind:this={mirrorEl}
+      style="width: {textareaWidth ? `${textareaWidth}px` : '100%'};"
+    >
+      {#each lines as line}
+        <div class="mirror-line">{line === '' ? '\u200B' : line}</div>
+      {/each}
+    </div>
+
     {#if activeLine >= 1 && activeLine <= lines.length}
       <div
         class="active-line-backdrop"
-        style="top: {(activeLine - 1) * lineHeight - scrollTop}px; height: {lineHeight}px;"
+        style="top: {activeLineTop}px; height: {activeLineHeight}px;"
       ></div>
     {/if}
     <textarea
@@ -116,8 +186,6 @@
     font-family: var(--editor-font);
     font-size: 12pt;
     line-height: 22px;
-    white-space: pre;
-    word-wrap: normal;
   }
 
   .editor-gutter {
@@ -140,6 +208,7 @@
     font-size: 12pt;
     line-height: 22px;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   .gutter-num.active-line {
@@ -155,11 +224,41 @@
     overflow: hidden;
   }
 
+  .mirror-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
+    padding: 0 12px;
+    margin: 0;
+    border: none;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 12pt;
+    line-height: 22px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    overflow: hidden;
+  }
+
+  .mirror-line {
+    min-height: 22px;
+    line-height: 22px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   .active-line-backdrop {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 22px;
     background-color: var(--ctp-surface0, rgba(255, 255, 255, 0.05));
     pointer-events: none;
     z-index: 0;
@@ -178,10 +277,11 @@
     line-height: 22px;
     resize: none;
     outline: none;
-    white-space: pre;
-    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    overflow-x: hidden;
     overflow-y: scroll;
-    word-wrap: normal;
     box-sizing: border-box;
     position: relative;
     z-index: 1;
