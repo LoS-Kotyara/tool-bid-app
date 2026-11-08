@@ -143,6 +143,39 @@
     activeLine = newlineCount + 1;
   }
 
+  /**
+   * Смещение каретки по строкам на delta (положительное — вниз, отрицательное — вверх).
+   * Колонка сохраняется, но обрезается по длине целевой строки. Нужна для PgDown/PgUp:
+   * мы отменяем нативную прокрутку WebView2 (она даёт оверскролл мимо предела Gutter),
+   * поэтому каретку переносим вручную — в видимую зону, без нативного scrollIntoView.
+   */
+  function moveCaretByLines(delta: number) {
+    if (!textareaEl) return;
+    const pos = textareaEl.selectionStart ?? 0;
+    const val = textareaEl.value;
+    const textLines = val.split('\n');
+    let currLine = 0;
+    let currCol = 0;
+    let charCount = 0;
+    for (let i = 0; i < textLines.length; i++) {
+      const len = textLines[i].length;
+      if (charCount <= pos && pos <= charCount + len) {
+        currLine = i;
+        currCol = pos - charCount;
+        break;
+      }
+      charCount += len + 1;
+    }
+    const targetLine = Math.max(0, Math.min(textLines.length - 1, currLine + delta));
+    const targetCol = Math.min(currCol, textLines[targetLine].length);
+    let newPos = 0;
+    for (let i = 0; i < targetLine; i++) {
+      newPos += textLines[i].length + 1;
+    }
+    newPos += targetCol;
+    textareaEl.setSelectionRange(newPos, newPos);
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     // Поддержка хоткеев Undo/Redo внутри textarea
     if (e.ctrlKey && (e.code === 'KeyZ')) {
@@ -169,7 +202,12 @@
         textareaEl.scrollTop = Math.min(maxAllowed, textareaEl.scrollTop + pageSize);
         gutterEl.scrollTop = textareaEl.scrollTop;
         scrollTop = textareaEl.scrollTop;
-        requestAnimationFrame(updateCursorLine);
+        const pageLines = Math.max(1, Math.floor(pageSize / lineHeight));
+        moveCaretByLines(pageLines);
+        updateCursorLine();
+        // Страховка: если браузер при перемещении каретки всё же прокрутит
+        // textarea, повторно прижимаем позицию к пределу Gutter.
+        requestAnimationFrame(clampOverscroll);
       }
       return;
     }
@@ -181,7 +219,12 @@
         textareaEl.scrollTop = Math.max(0, textareaEl.scrollTop - pageSize);
         gutterEl.scrollTop = textareaEl.scrollTop;
         scrollTop = textareaEl.scrollTop;
-        requestAnimationFrame(updateCursorLine);
+        const pageLines = Math.max(1, Math.floor(pageSize / lineHeight));
+        moveCaretByLines(-pageLines);
+        updateCursorLine();
+        // Страховка: если браузер при перемещении каретки всё же прокрутит
+        // textarea, повторно прижимаем позицию к пределу Gutter.
+        requestAnimationFrame(clampOverscroll);
       }
       return;
     }

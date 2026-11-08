@@ -28,7 +28,7 @@
 </script>
 
 <div class="meta-form">
-  <div class="form-row">
+  <div class="form-row row-main">
     <div class="form-group col-small">
       <label for="bidNum">Номер №</label>
       <input id="bidNum" type="text" placeholder="52" bind:value={meta.bidNum} on:input={onFieldChange} />
@@ -130,10 +130,15 @@
   .full-width .form-group {
     flex: 1 1 100%;
   }
-  .col-small { width: 75px; min-width: 65px; flex-shrink: 0; }
-  .col-date { width: 135px; min-width: 130px; flex-shrink: 0; }
-  .col-dept { flex: 1; min-width: 110px; }
+  .col-small { width: 68px; min-width: 58px; flex-shrink: 0; }
+  .col-date { width: 130px; min-width: 122px; flex-shrink: 0; }
+  .col-dept { flex: 1 1 120px; min-width: 110px; }
   .col-flex-1 { flex: 1; min-width: 150px; }
+  /* Первая строка формы: при узкой панели редактора «Подразделение» переносится
+     на вторую строку на всю ширину и не обрезается до «ПОДРАЗДЕЛЕН». */
+  .row-main {
+    flex-wrap: wrap;
+  }
   .form-group {
     display: flex;
     flex-direction: column;
