@@ -135,7 +135,7 @@
       <div
         class="gutter-num"
         class:active-line={idx + 1 === activeLine}
-        style="height: {lineHeights[idx] || lineHeight}px; line-height: {lineHeight}px;"
+        style="height: {lineHeights[idx] || lineHeight}px; min-height: {lineHeights[idx] || lineHeight}px;"
       >
         {idx + 1}
       </div>
@@ -205,15 +205,17 @@
   }
 
   .gutter-num {
-    height: 22px;
-    padding-right: 10px;
-    text-align: right;
-    color: var(--ctp-overlay0);
-    font-size: 12pt;
-    line-height: 22px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 22px;
     box-sizing: border-box;
+    line-height: 22px;
+    padding-right: 10px;
     overflow: visible;
     white-space: nowrap;
+    color: var(--ctp-overlay0);
+    font-size: 12pt;
   }
 
   .gutter-num.active-line {
