@@ -1,0 +1,9 @@
+{
+  "name": "tool-bid-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "build:release": "go build -tags desktop,production -ldflags \"-H windowsgui -X main.GitCommit=$(git rev-parse --short HEAD)\" -o build/bin/tool-bid-app.exe ."
+  }
+}

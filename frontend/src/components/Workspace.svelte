@@ -47,6 +47,8 @@
 
     const offsetX = e.clientX - rect.left;
     let ratio = (offsetX / rect.width) * 100;
+    const minRatio = (320 / rect.width) * 100;
+    if (ratio < minRatio) ratio = minRatio;
     if (ratio < 25) ratio = 25;
     if (ratio > 75) ratio = 75;
 
@@ -72,7 +74,7 @@
     <div
       class="editor-pane"
       class:full-width={viewMode === 'edit'}
-      style={viewMode === 'split' ? `width: ${splitRatio}%; flex: none;` : ''}
+      style={viewMode === 'split' ? `width: ${splitRatio}%; min-width: 320px; flex: none;` : ''}
     >
       <MetaForm
         bind:meta={activeTab.meta}

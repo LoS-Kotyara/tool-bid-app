@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -11,6 +12,8 @@ import (
 	"tool-bid-app/internal/app"
 )
 
+var GitCommit = "dev"
+
 //go:embed all:frontend/dist
 var assets embed.FS
 
@@ -18,9 +21,14 @@ func main() {
 	// Создаем экземпляр сервиса приложения
 	appService := app.NewApp()
 
+	appTitle := "Управление заявками на инструмент"
+	if GitCommit != "" && GitCommit != "dev" {
+		appTitle = fmt.Sprintf("Управление заявками на инструмент [%s]", GitCommit)
+	}
+
 	// Запуск приложения с окном 1440x900, минимумом 1100x700 и цветом Catppuccin Mocha (#1e1e2e)
 	err := wails.Run(&options.App{
-		Title:             "Управление заявками на инструмент",
+		Title:             appTitle,
 		Width:             1440,
 		Height:            900,
 		MinWidth:          1100,

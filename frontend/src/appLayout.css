@@ -18,6 +18,8 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  overflow-x: hidden;
+  min-width: 0;
   position: relative;
 }
 
@@ -28,7 +30,10 @@
 .editor-pane {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .workspace-splitter {

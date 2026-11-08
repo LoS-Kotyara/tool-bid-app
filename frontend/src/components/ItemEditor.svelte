@@ -74,6 +74,7 @@
 
   function handleScroll(e: Event) {
     const target = e.target as HTMLTextAreaElement;
+    if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
     scrollTop = target.scrollTop;
     if (gutterEl) {
       gutterEl.scrollTop = target.scrollTop;
@@ -108,6 +109,7 @@
       dispatch('redo');
     }
 
+    if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
     requestAnimationFrame(updateCursorLine);
   }
 
@@ -187,6 +189,9 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    overflow-x: hidden;
+    max-width: 100%;
+    min-width: 0;
     position: relative;
     background-color: var(--ctp-base);
     font-family: var(--editor-font);
