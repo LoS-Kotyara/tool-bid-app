@@ -4,153 +4,161 @@ const previewHTMLHeader = `<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<title>Заявка на закупку</title>
 <style>
+  /* ===== Печатный лист А4: поля 10 мм, без колонтитулов и номеров страниц ===== */
   @page {
     size: A4 portrait;
     margin: 10mm;
   }
   * {
     box-sizing: border-box;
+  }
+  html {
     margin: 0;
     padding: 0;
   }
   body {
-    background-color: #ffffff;
+    background-color: #2b2d3a;
+    margin: 0;
+    padding: 20px 0;
+    display: flex;
+    justify-content: center;
     color: #000000;
-    font-family: "Liberation Sans", "DejaVu Sans", "Arial", sans-serif;
-    font-size: 10pt;
-    line-height: 1.25;
+    font-family: Calibri, Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.15;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .page-container {
-    width: 190mm;
-    margin: 0 auto;
-    padding: 0;
+  .page-sheet {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 10mm;
+    box-sizing: border-box;
     background: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
-  .top-header-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 2mm;
-  }
-  .top-header-table td {
-    vertical-align: bottom;
-  }
-  .bid-title {
-    font-size: 10pt;
-    font-weight: normal;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding-right: 8px;
-    padding-bottom: 2px;
-  }
-  .bid-number-underline {
-    border-bottom: 1px solid #000000;
-    display: inline-block;
-    width: 100%;
-    padding-bottom: 2px;
-    font-weight: bold;
-    font-size: 10pt;
-    text-align: left;
-  }
-  .dept-box-container {
-    width: 75mm;
-    border: 1.2pt solid #000000;
-    text-align: center;
-    margin-left: auto;
-  }
-  .dept-box-header {
-    background-color: #d9d9d9;
-    font-size: 9pt;
-    font-weight: bold;
-    padding: 3px 6px;
-    border-bottom: 1.2pt solid #000000;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .dept-box-value {
-    font-size: 10.5pt;
-    font-weight: bold;
-    padding: 6px 8px;
-    min-height: 24px;
-  }
-  .signatories-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 3mm;
-    margin-bottom: 3.5mm;
-  }
-  .signatories-table td {
-    border: 1px solid #000000;
-    padding: 4px 6px;
-    font-size: 9pt;
-    vertical-align: middle;
-  }
-  .sig-title {
-    font-weight: bold;
-    background-color: #f2f2f2;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .sig-sign-col, .sig-phone-col {
-    color: #333333;
-    font-size: 8.5pt;
-    text-align: center;
-    white-space: nowrap;
-  }
-  .section-title {
-    font-size: 10pt;
-    font-weight: bold;
-    margin-top: 2.5mm;
-    margin-bottom: 1.5mm;
-  }
-  table.section-table, table.items-table {
+
+  /* ===== Строгая 6-колоночная сетка 1С/Excel (A-F), базовая ширина 190 мм ===== */
+  .col-a { width: 4.41%; }
+  .col-b { width: 31.51%; }
+  .col-c { width: 22.22%; }
+  .col-d { width: 22.98%; }
+  .col-e { width: 8.98%; }
+  .col-f { width: 9.89%; }
+
+  table.grid {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    margin-top: 1mm;
-    margin-bottom: 2.5mm;
   }
-  table.section-table th, table.items-table th {
-    background-color: #d9d9d9;
+  table.grid th, table.grid td {
+    border: none;
+    padding: 2px 4px;
+    font-size: 12pt;
+    font-weight: normal;
+    line-height: 1.15;
+    vertical-align: middle;
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  table.grid .boxed {
     border: 1px solid #000000;
-    padding: 4px 4px;
-    font-size: 9pt;
+  }
+  table.grid .centered {
+    text-align: center;
+  }
+  .spacer-row td {
+    height: 3mm;
+    padding: 0;
+  }
+
+  /* ===== Шапка документа ===== */
+  .doc-title {
     font-weight: bold;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 0 2px 1px 0;
+  }
+  .bid-number {
+    border-bottom: 1px solid #000000;
+    vertical-align: bottom;
+    padding: 0 0 1px 4px;
+  }
+  .dept-label {
     text-align: center;
     vertical-align: middle;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
-  table.section-table td, table.items-table td {
-    border: 1px solid #000000;
-    padding: 4px 5px;
-    font-size: 9pt;
+  .dept-box {
+    border: 1.5pt solid #000000;
+    text-align: center;
     vertical-align: middle;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    padding: 4px 6px;
   }
-  thead {
+
+  /* ===== Сетка подписантов ===== */
+  .sign-table {
+    margin-top: 4mm;
+  }
+  .sign-table tr.sign-row td {
+    height: 8mm;
+  }
+
+  /* ===== Заголовки разделов ===== */
+  .section-title {
+    margin: 3mm 0 1.5mm 0;
+    text-align: center;
+    font-size: 12pt;
+    font-weight: normal;
+    white-space: nowrap;
+  }
+
+  /* ===== Раздел II. Непрерывный табличный поток с повтором шапки ===== */
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .items-table thead {
     display: table-header-group;
   }
-  tr {
+  .items-table tr {
     page-break-inside: avoid;
+    break-inside: avoid;
   }
-  .col-center {
+  .items-table th, .items-table td {
+    border: 1px solid #000000;
+    padding: 2px 4px;
+    font-size: 11pt;
+    line-height: 1.15;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .items-table th {
     text-align: center;
+    vertical-align: middle;
+    font-weight: normal;
   }
-  .col-bold {
-    font-weight: bold;
+  .col-num { width: 4.41%; text-align: center; vertical-align: middle; }
+  .col-name { width: 31.51%; text-align: left; vertical-align: middle; }
+  .col-desc { width: 45.20%; text-align: left; vertical-align: top; }
+  .col-unit { width: 8.98%; text-align: center; vertical-align: middle; }
+  .col-qty { width: 9.89%; text-align: center; vertical-align: middle; }
+  .empty-row {
+    text-align: center;
+    vertical-align: middle;
+    font-style: italic;
+    padding: 8px 4px;
   }
-  .sec1-col-num { width: 6%; text-align: center; }
-  .sec1-col-name { width: 35%; font-weight: bold; }
-  .sec1-col-desc { width: 59%; }
-  .sec2-col-num { width: 6%; text-align: center; }
-  .sec2-col-name { width: 32%; text-align: left; }
-  .sec2-col-desc { width: 44%; text-align: left; }
-  .sec2-col-unit { width: 9%; text-align: center; }
-  .sec2-col-qty { width: 9%; text-align: center; }
+
+  @media print {
+    body { background: transparent; padding: 0; display: block; }
+    .page-sheet { width: 100%; min-height: auto; padding: 0; box-shadow: none; }
+  }
 </style>
 </head>
 `

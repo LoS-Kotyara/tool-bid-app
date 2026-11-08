@@ -5,8 +5,6 @@
 
   let zoomLevel: number = 100;
   let iframeEl: HTMLIFrameElement;
-  let currentPage: number = 1;
-  let totalPages: number = 1;
 
   $: if (iframeEl && previewHtml) {
     updateIframeContent(previewHtml);
@@ -19,11 +17,20 @@
       doc.open();
       doc.write(htmlContent);
       doc.close();
-      // Вычисляем приблизительное количество страниц (высота листа A4 ~ 1122px при 96 DPI)
-      setTimeout(() => {
-        const bodyHeight = doc.body.scrollHeight;
-        totalPages = Math.max(1, Math.ceil(bodyHeight / 1120));
-      }, 100);
+      // Документ рендерится единым непрерывным потоком: высота листа подстраивается под
+      // содержимое, а разделение на страницы выполняет движок печати.
+      window.setTimeout(fitIframeHeight, 60);
+    }
+  }
+
+  // fitIframeHeight растягивает iframe по фактической высоте непрерывного листа А4
+  function fitIframeHeight() {
+    if (!iframeEl) return;
+    const doc = iframeEl.contentDocument;
+    if (!doc || !doc.body) return;
+    const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+    if (contentHeight > 0) {
+      iframeEl.style.height = `${contentHeight}px`;
     }
   }
 
@@ -50,24 +57,11 @@
     }
   }
 
-  function nextPage() {
-    if (currentPage < totalPages) {
-      currentPage++;
-      scrollToPage(currentPage);
-    }
-  }
-
-  function prevPage() {
-    if (currentPage > 1) {
-      currentPage--;
-      scrollToPage(currentPage);
-    }
-  }
-
-  function scrollToPage(p: number) {
-    if (!iframeEl || !iframeEl.contentWindow) return;
-    const offset = (p - 1) * 1120;
-    iframeEl.contentWindow.scrollTo({ top: offset, behavior: 'smooth' });
+  function printPreview() {
+    const printWindow = iframeEl?.contentWindow;
+    if (!printWindow) return;
+    printWindow.focus();
+    printWindow.print();
   }
 
   onMount(() => {
@@ -76,7 +70,7 @@
 </script>
 
 <div class="preview-panel" on:wheel={handleWheel}>
-  <!-- Тулбар превью: Зум и пагинация -->
+  <!-- Тулбар превью: масштаб и печать (пагинация не требуется — лист непрерывный) -->
   <div class="preview-toolbar">
     <div class="toolbar-group">
       <button class="tool-btn" title="Уменьшить (Ctrl + Колесо вниз)" on:click={zoomOut}>−</button>
@@ -88,17 +82,13 @@
     </div>
 
     <div class="toolbar-group">
-      <button class="tool-btn" disabled={currentPage <= 1} on:click={prevPage} title="Предыдущая страница">
-        ◀
-      </button>
-      <span class="page-indicator">Стр. {currentPage} из {totalPages}</span>
-      <button class="tool-btn" disabled={currentPage >= totalPages} on:click={nextPage} title="Следующая страница">
-        ▶
+      <button class="tool-btn print-btn" title="Печать документа (Ctrl + P)" on:click={printPreview}>
+        Печать
       </button>
     </div>
   </div>
 
-  <!-- Область отображения листа А4 с центрированием и зумом -->
+  <!-- Область отображения непрерывного листа А4 с центрированием и зумом -->
   <div class="sheet-viewport">
     <div
       class="a4-sheet-container"
@@ -106,6 +96,7 @@
     >
       <iframe
         bind:this={iframeEl}
+        on:load={fitIframeHeight}
         title="Предпросмотр заявки A4"
         class="a4-sheet"
       ></iframe>
@@ -171,10 +162,14 @@
     font-size: 9.5pt;
   }
 
-  .page-indicator {
-    font-size: 9pt;
-    color: var(--ctp-subtext0);
-    padding: 0 6px;
+  .print-btn {
+    padding: 2px 10px;
+    gap: 4px;
+  }
+
+  .print-btn:hover {
+    background-color: var(--ctp-surface1);
+    border-color: var(--ctp-surface2);
   }
 
   .sheet-viewport {
@@ -182,6 +177,7 @@
     overflow: auto;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     padding: 24px 16px;
   }
 
@@ -191,11 +187,11 @@
     justify-content: center;
   }
 
-  /* Пропорции формата А4 (210мм x 297мм) в пикселях: 794px x 1123px */
+  /* Непрерывный лист: ширина 210мм, высота подстраивается под содержимое документа */
   .a4-sheet {
     width: 210mm;
     min-height: 297mm;
-    background-color: #ffffff;
+    background-color: #2b2d3a;
     border: none;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     border-radius: 2px;

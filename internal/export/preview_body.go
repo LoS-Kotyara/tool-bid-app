@@ -1,113 +1,136 @@
 package export
 
+// previewHTMLBody — тело печатной формы: единый непрерывный поток без колонтитулов.
+// Все таблицы построены на строгой 6-колоночной сетке A-F (см. preview_header.go).
 const previewHTMLBody = `<body>
-<div class="page-container">
-  <!-- Верхний заголовок: Название заявки с подчеркиванием номера слева, блок подразделения справа -->
-  <table class="top-header-table">
-    <tr>
-      <td style="width: 58%; vertical-align: bottom;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td class="bid-title">Заявка на закупку</td>
-            <td style="width: 100%; vertical-align: bottom;">
-              <span class="bid-number-underline">№{{.Meta.BidNum}} от {{.Meta.BidDate}} г.</span>
-            </td>
-          </tr>
-        </table>
-      </td>
-      <td style="width: 42%; vertical-align: top; text-align: right;">
-        <div class="dept-box-container">
-          <div class="dept-box-header">ПОДРАЗДЕЛЕНИЕ</div>
-          <div class="dept-box-value">{{if .Meta.Dept}}{{.Meta.Dept}}{{else}}&mdash;{{end}}</div>
-        </div>
-      </td>
-    </tr>
-  </table>
+<div class="page-sheet">
 
-  <!-- Таблица подписантов (2 строки: Инициатор и Куратор) -->
-  <table class="signatories-table">
-    <tr>
-      <td style="width: 28%;" class="sig-title">ИНИЦИАТОР ЗАКУПКИ</td>
-      <td style="width: 28%;">{{if .Meta.InitRole}}{{.Meta.InitRole}}{{else}}&mdash;{{end}}</td>
-      <td style="width: 24%;">{{if .Meta.InitFio}}{{.Meta.InitFio}}{{else}}&mdash;{{end}}</td>
-      <td style="width: 10%;" class="sig-sign-col">Подп.</td>
-      <td style="width: 10%;" class="sig-phone-col">Конт.тел.</td>
-    </tr>
-    <tr>
-      <td class="sig-title">КУРАТОР ЗАКУПКИ</td>
-      <td>{{if .Meta.CurRole}}{{.Meta.CurRole}}{{else}}&mdash;{{end}}</td>
-      <td>{{if .Meta.CurFio}}{{.Meta.CurFio}}{{else}}&mdash;{{end}}</td>
-      <td class="sig-sign-col">Подп.</td>
-      <td class="sig-phone-col">Конт.тел.</td>
-    </tr>
-  </table>
-
-  <!-- Раздел I: Общие сведения -->
-  <div class="section-title">I. Общие сведения</div>
-  <table class="section-table">
-    <thead>
-      <tr>
-        <th class="sec1-col-num">№ п/п</th>
-        <th class="sec1-col-name">Наименование пункта</th>
-        <th class="sec1-col-desc">Характеристики товара/услуги</th>
-      </tr>
-    </thead>
+  <!-- ===== Шапка документа ===== -->
+  <!-- C1: наименование документа (единственный жирный элемент) | D1:F1: номер и дата заявки -->
+  <!-- C3: графа ПОДРАЗДЕЛЕНИЕ (без рамок)                        | D3:F3: блок цеха (рамка 1.5pt) -->
+  <table class="grid">
+    <colgroup>
+      <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
+    </colgroup>
     <tbody>
       <tr>
-        <td class="col-center">1</td>
-        <td class="col-bold">{{if .Meta.ShopName}}{{.Meta.ShopName}}{{else}}&mdash;{{end}}</td>
-        <td>&mdash;</td>
+        <td colspan="2"></td>
+        <td class="doc-title">Заявка на закупку</td>
+        <td class="bid-number" colspan="3">№{{.Meta.BidNum}} от {{.Meta.BidDate}}</td>
+      </tr>
+      <tr class="spacer-row">
+        <td colspan="6"></td>
       </tr>
       <tr>
-        <td class="col-center">2</td>
-        <td>Желаемая дата поставки</td>
-        <td>{{if .Meta.DeliveryDate}}{{.Meta.DeliveryDate}}{{else}}&mdash;{{end}}</td>
-      </tr>
-      <tr>
-        <td class="col-center">3</td>
-        <td>Требования к качеству товара, работ, услуг</td>
-        <td>{{if .Meta.QualityReq}}{{.Meta.QualityReq}}{{else}}&mdash;{{end}}</td>
-      </tr>
-      <tr>
-        <td class="col-center">4</td>
-        <td>Цель закупки</td>
-        <td>{{if .Meta.Purpose}}{{.Meta.Purpose}}{{else}}&mdash;{{end}}</td>
+        <td colspan="2"></td>
+        <td class="dept-label">ПОДРАЗДЕЛЕНИЕ</td>
+        <td class="dept-box" colspan="3">{{dash .Meta.Dept}}</td>
       </tr>
     </tbody>
   </table>
 
-  <!-- Раздел II: Техническая часть документации -->
-  <div class="section-title">II. Техническая часть документации</div>
-  <table class="items-table">
+  <!-- ===== Сетка подписантов: строка заголовков граф, инициатор, куратор ===== -->
+  <table class="grid sign-table">
+    <colgroup>
+      <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
+    </colgroup>
+    <tbody>
+      <tr>
+        <td colspan="2"></td>
+        <td class="boxed centered">Должность</td>
+        <td class="boxed centered">Ф.И.О.</td>
+        <td class="boxed centered">Подп.</td>
+        <td class="boxed centered">Конт.тел.</td>
+      </tr>
+      <tr class="sign-row">
+        <td class="boxed" colspan="2">ИНИЦИАТОР ЗАКУПКИ</td>
+        <td class="boxed">{{dash .Meta.InitRole}}</td>
+        <td class="boxed">{{dash .Meta.InitFio}}</td>
+        <td class="boxed"></td>
+        <td class="boxed"></td>
+      </tr>
+      <tr class="sign-row">
+        <td class="boxed" colspan="2">КУРАТОР ЗАКУПКИ</td>
+        <td class="boxed">{{dash .Meta.CurRole}}</td>
+        <td class="boxed">{{dash .Meta.CurFio}}</td>
+        <td class="boxed"></td>
+        <td class="boxed"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== Раздел I. Общие сведения: A — № п/п, B:C — наименование пункта, D:F — характеристики ===== -->
+  <div class="section-title">I. Общие сведения</div>
+  <table class="grid">
+    <colgroup>
+      <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
+    </colgroup>
     <thead>
       <tr>
-        <th class="sec2-col-num">№ п/п</th>
-        <th class="sec2-col-name">Наименование товара</th>
-        <th class="sec2-col-desc">Характеристики товара</th>
-        <th class="sec2-col-unit">Ед. изм.</th>
-        <th class="sec2-col-qty">Кол-во</th>
+        <th class="boxed centered">№ п/п</th>
+        <th class="boxed centered" colspan="2">Наименование пункта</th>
+        <th class="boxed centered" colspan="3">Характеристики товара/услуги</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="boxed centered">1</td>
+        <td class="boxed" colspan="2">{{dash .Meta.ShopName}}</td>
+        <td class="boxed" colspan="3">—</td>
+      </tr>
+      <tr>
+        <td class="boxed centered">2</td>
+        <td class="boxed" colspan="2">Желаемая дата поставки</td>
+        <td class="boxed" colspan="3">{{dash .Meta.DeliveryDate}}</td>
+      </tr>
+      <tr>
+        <td class="boxed centered">3</td>
+        <td class="boxed" colspan="2">Требования к качеству товара, работ, услуг</td>
+        <td class="boxed" colspan="3">{{dash .Meta.QualityReq}}</td>
+      </tr>
+      <tr>
+        <td class="boxed centered">4</td>
+        <td class="boxed" colspan="2">Цель закупки</td>
+        <td class="boxed" colspan="3">{{dash .Meta.Purpose}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ===== Раздел II. Техническая часть документации ===== -->
+  <!-- 5 колонок: 4.41% + 31.51% + 45.20% (C+D) + 8.98% + 9.89% = 100% -->
+  <div class="section-title">II. Техническая часть документации</div>
+  <table class="items-table">
+    <colgroup>
+      <col class="col-num"><col class="col-name"><col class="col-desc"><col class="col-unit"><col class="col-qty">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="col-num">№<br>п/п</th>
+        <th class="col-name">Наименов. товара</th>
+        <th class="col-desc">Характеристики товара</th>
+        <th class="col-unit">Ед. изм</th>
+        <th class="col-qty">Кол-во</th>
       </tr>
     </thead>
     <tbody>
       {{if .Items}}
         {{range .Items}}
         <tr>
-          <td class="sec2-col-num">{{.Num}}</td>
-          <td class="sec2-col-name">{{.Name}}</td>
-          <td class="sec2-col-desc">{{.Desc}}</td>
-          <td class="sec2-col-unit">{{.Unit}}</td>
-          <td class="sec2-col-qty">{{.Qty}}</td>
+          <td class="col-num">{{.Num}}</td>
+          <td class="col-name">{{.Name}}</td>
+          <td class="col-desc">{{.Desc}}</td>
+          <td class="col-unit">{{.Unit}}</td>
+          <td class="col-qty">{{.Qty}}</td>
         </tr>
         {{end}}
       {{else}}
         <tr>
-          <td colspan="5" style="text-align: center; padding: 12px; color: #777777; font-style: italic;">
-            Позиции спецификации не добавлены
-          </td>
+          <td class="empty-row" colspan="5">Позиции спецификации не добавлены</td>
         </tr>
       {{end}}
     </tbody>
   </table>
+
 </div>
 </body>
 </html>`
