@@ -14,7 +14,7 @@ const previewHTMLBody = `<body>
   <!-- ===== Шапка документа ===== -->
   <!-- C1: наименование документа (единственный жирный элемент) | D1:F1: номер и дата заявки -->
   <!-- C3: графа ПОДРАЗДЕЛЕНИЕ (без рамок)                        | D3:F3: блок цеха (рамка 1.5pt) -->
-  <table class="grid">
+  <table class="grid top-header-table">
     <colgroup>
       <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
     </colgroup>
@@ -36,7 +36,7 @@ const previewHTMLBody = `<body>
   </table>
 
   <!-- ===== Сетка подписантов: строка заголовков граф, инициатор, куратор ===== -->
-  <table class="grid sign-table">
+  <table class="grid signatories-table">
     <colgroup>
       <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
     </colgroup>
@@ -67,7 +67,7 @@ const previewHTMLBody = `<body>
 
   <!-- ===== Раздел I. Общие сведения: A — № п/п, B:C — наименование пункта, D:F — характеристики ===== -->
   <div class="section-title">I. Общие сведения</div>
-  <table class="grid">
+  <table class="grid section-table">
     <colgroup>
       <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d"><col class="col-e"><col class="col-f">
     </colgroup>

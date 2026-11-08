@@ -1,17 +1,17 @@
 package export
 
 // previewHTMLHeader — стили автономного предпросмотра: дискретные листы А4 (210x297 мм)
-// на экране и полное совпадение с печатью (@page A4, поля 10 мм, без колонтитулов).
+// на экране и полное совпадение с печатью (@page A4, поля 8/10 мм, без колонтитулов).
 const previewHTMLHeader = `<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <title>Заявка на закупку</title>
 <style>
-  /* ===== Печатный лист А4: поля 10 мм, без колонтитулов и номеров страниц ===== */
+  /* ===== Печатный лист А4: поля по эталону ReportLab (верх/низ 8 мм, право/лево 10 мм) ===== */
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm 10mm;
   }
   * {
     box-sizing: border-box;
@@ -71,7 +71,8 @@ const previewHTMLHeader = `<!DOCTYPE html>
     width: 210mm;
     height: 297mm;
     max-height: 297mm;
-    padding: 10mm;
+    /* Поля листа по эталону ReportLab: верх/низ 8 мм, право/лево 10 мм */
+    padding: 8mm 10mm;
     background: #ffffff;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
     box-sizing: border-box;
@@ -99,6 +100,11 @@ const previewHTMLHeader = `<!DOCTYPE html>
   .col-e { width: 8.98%; }
   .col-f { width: 9.89%; }
 
+  /* ===== Общие стили таблиц ===== */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
   table.grid {
     width: 100%;
     border-collapse: collapse;
@@ -106,10 +112,7 @@ const previewHTMLHeader = `<!DOCTYPE html>
   }
   table.grid th, table.grid td {
     border: none;
-    padding: 2px 4px;
-    font-size: 12pt;
     font-weight: normal;
-    line-height: 1.15;
     vertical-align: middle;
     text-align: left;
     word-break: break-word;
@@ -121,8 +124,32 @@ const previewHTMLHeader = `<!DOCTYPE html>
   table.grid .centered {
     text-align: center;
   }
+
+  /* ===== Верхний блок (шапка документа) ===== */
+  .top-header-table td {
+    padding: 1px 2px;
+    font-size: 11pt;
+    line-height: 1.15;
+  }
+
+  /* ===== Сетка подписантов ===== */
+  .signatories-table {
+    margin-top: 3mm;
+  }
+  .signatories-table td {
+    padding: 1.5px 3px;
+    font-size: 10.5pt;
+    line-height: 1.15;
+  }
+  /* Рамки рисуются только у граф с классом boxed: пустая ячейка A:B остаётся без рамки */
+  .signatories-table td.boxed {
+    border: 1px solid #000000;
+  }
+  .signatories-table tr.sign-row td {
+    height: 8mm;
+  }
   .spacer-row td {
-    height: 3mm;
+    height: 2mm;
     padding: 0;
   }
 
@@ -159,21 +186,25 @@ const previewHTMLHeader = `<!DOCTYPE html>
     border: 1.5pt solid #000000 !important;
   }
 
-  /* ===== Сетка подписантов ===== */
-  .sign-table {
-    margin-top: 4mm;
-  }
-  .sign-table tr.sign-row td {
-    height: 8mm;
+  /* ===== Заголовки разделов I и II ===== */
+  .section-title {
+    margin: 1.8mm 0 1mm 0;
+    text-align: center;
+    font-size: 11pt;
+    font-weight: normal;
+    line-height: 1.1;
+    white-space: nowrap;
   }
 
-  /* ===== Заголовки разделов ===== */
-  .section-title {
-    margin: 3mm 0 1.5mm 0;
-    text-align: center;
-    font-size: 12pt;
-    font-weight: normal;
-    white-space: nowrap;
+  /* ===== Таблица Раздела I (Общие сведения) ===== */
+  .section-table {
+    margin-top: 0;
+  }
+  .section-table td, .section-table th {
+    border: 1px solid #000000;
+    padding: 1.5px 3px;
+    font-size: 10.5pt;
+    line-height: 1.15;
   }
 
   /* ===== Раздел II. Таблица спецификации: шапка повторяется на каждом листе ===== */
@@ -181,6 +212,7 @@ const previewHTMLHeader = `<!DOCTYPE html>
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    margin-top: 1mm;
     font-family: Calibri, Arial, sans-serif;
   }
   .items-table thead {
@@ -192,8 +224,8 @@ const previewHTMLHeader = `<!DOCTYPE html>
   }
   .items-table th, .items-table td {
     border: 1px solid #000000;
-    padding: 2px 4px;
-    font-size: 11pt;
+    padding: 1.5px 3px;
+    font-size: 10.5pt;
     line-height: 1.15;
     word-break: break-word;
     overflow-wrap: anywhere;

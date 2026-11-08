@@ -99,7 +99,7 @@ func TestGenerateDocumentPreviewHTML(t *testing.T) {
 		"<!DOCTYPE html>",
 		"@page {",
 		"size: A4 portrait;",
-		"margin: 10mm;",
+		"margin: 8mm 10mm;",
 		"display: table-header-group;",
 		"page-break-inside: avoid;",
 		"Заявка на закупку",
@@ -156,6 +156,13 @@ func TestPreviewHTMLBuildsExcelSixColumnGrid(t *testing.T) {
 	if count := strings.Count(htmlStr, sixColumnColgroup); count != 3 {
 		t.Errorf("expected 3 six-column colgroups (header, signatories, section I), got %d", count)
 	}
+
+	// Каждая из трёх таблиц шапки имеет собственный именованный класс компактной геометрии
+	assertPreviewContains(t, htmlStr, []string{
+		`<table class="grid top-header-table">`,
+		`<table class="grid signatories-table">`,
+		`<table class="grid section-table">`,
+	})
 
 	// Раздел II: характеристики объединяют колонки C + D -> 45.20%
 	assertPreviewContains(t, htmlStr, []string{
@@ -254,7 +261,8 @@ func TestPreviewHTMLDiscretePageGeometry(t *testing.T) {
 		"width: 210mm;",
 		"height: 297mm;",
 		"max-height: 297mm;",
-		"padding: 10mm;",
+		// Поля листа по эталону ReportLab: верх/низ 8 мм, право/лево 10 мм
+		"padding: 8mm 10mm;",
 		"overflow: hidden;",
 		"contain: layout paint;",
 		// Печать: листы стыкуются без экранной косметики
@@ -266,6 +274,35 @@ func TestPreviewHTMLDiscretePageGeometry(t *testing.T) {
 	if count := strings.Count(htmlStr, "page-break-after: always"); count != 2 {
 		t.Errorf("expected page-break-after on screen and print rules, got %d declarations", count)
 	}
+}
+
+// TestPreviewHTMLCompactVerticalGeometry фиксирует компактную вертикальную геометрию
+// первой страницы: поля 8/10 мм, кегли 11pt/10.5pt и минимальные внутренние отступы,
+// чтобы 27 строк спецификации не вылетали на отдельный печатный лист.
+func TestPreviewHTMLCompactVerticalGeometry(t *testing.T) {
+	htmlStr := renderPreview(t, newPreviewTestDocument())
+
+	assertPreviewContains(t, htmlStr, []string{
+		// Поля страницы печати по эталону ReportLab
+		"@page {\n    size: A4 portrait;\n    margin: 8mm 10mm;",
+		// Верхний блок: 11pt, отступ ячеек 1px 2px
+		".top-header-table td {\n    padding: 1px 2px;\n    font-size: 11pt;",
+		// Подписанты: 10.5pt, отступ 1.5px 3px, компактный интерлиньяж
+		".signatories-table td {\n    padding: 1.5px 3px;\n    font-size: 10.5pt;\n    line-height: 1.15;",
+		// Раздел I: 10.5pt с рамкой 1px
+		".section-table td, .section-table th {\n    border: 1px solid #000000;\n    padding: 1.5px 3px;\n    font-size: 10.5pt;",
+		// Раздел II: только 1 мм сверху, чтобы шапка таблицы прижималась к заголовку
+		"table-layout: fixed;\n    margin-top: 1mm;",
+		// Разделитель шапки документа — 2 мм вместо 3 мм
+		".spacer-row td {\n    height: 2mm;",
+	})
+
+	// Строки спецификации и подписантов не должны набираться крупным кеглем
+	assertPreviewNotContains(t, htmlStr, []string{
+		".items-table th, .items-table td {\n    border: 1px solid #000000;\n    padding: 2px 4px;",
+		".signatories-table td {\n    padding: 4px 6px;",
+		"margin: 3mm 0 1.5mm 0;",
+	})
 }
 
 func TestBuildPreviewPagesPagination(t *testing.T) {
@@ -427,7 +464,7 @@ func TestPreviewHTMLBoldOnlyForDocumentTitle(t *testing.T) {
 	assertPreviewContains(t, htmlStr, []string{
 		".doc-title {\n    font-weight: bold;",
 		".items-table th {\n    text-align: center;\n    vertical-align: middle;\n    font-weight: normal;",
-		".section-title {\n    margin: 3mm 0 1.5mm 0;\n    text-align: center;\n    font-size: 12pt;\n    font-weight: normal;",
+		".section-title {\n    margin: 1.8mm 0 1mm 0;\n    text-align: center;\n    font-size: 11pt;\n    font-weight: normal;",
 	})
 
 	// Названия разделов и графы таблиц не выделены жирным
@@ -448,8 +485,8 @@ func TestPreviewHTMLKeepsFontAndBorderTokens(t *testing.T) {
 		"border: 1px solid #000000;",
 		"table-layout: fixed;",
 		"border-collapse: collapse;",
-		// Строки спецификации набираются кеглем 11pt
-		".items-table th, .items-table td {\n    border: 1px solid #000000;\n    padding: 2px 4px;\n    font-size: 11pt;",
+		// Строки спецификации набираются компактным кеглем 10.5pt
+		".items-table th, .items-table td {\n    border: 1px solid #000000;\n    padding: 1.5px 3px;\n    font-size: 10.5pt;",
 	})
 }
 
