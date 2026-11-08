@@ -12,12 +12,15 @@
 
   let textareaEl: HTMLTextAreaElement;
   let lines: string[] = [''];
-  let activeLineIndex: number = 0;
+  let activeLine: number = 1;
   let scrollTop: number = 0;
 
   $: {
     lines = text.split('\n');
     if (lines.length === 0) lines = [''];
+    if (activeLine > lines.length) {
+      activeLine = Math.max(1, lines.length);
+    }
   }
 
   function handleInput(e: Event) {
@@ -34,9 +37,15 @@
 
   function updateCursorLine() {
     if (!textareaEl) return;
-    const pos = textareaEl.selectionStart;
+    const pos = textareaEl.selectionStart ?? 0;
     const textBefore = textareaEl.value.slice(0, pos);
-    activeLineIndex = textBefore.split('\n').length - 1;
+    let newlineCount = 0;
+    for (let i = 0; i < textBefore.length; i++) {
+      if (textBefore[i] === '\n') {
+        newlineCount++;
+      }
+    }
+    activeLine = newlineCount + 1;
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -53,6 +62,8 @@
       e.preventDefault();
       dispatch('redo');
     }
+
+    requestAnimationFrame(updateCursorLine);
   }
 
   onMount(() => {
@@ -63,13 +74,19 @@
 <div class="editor-container" style="--editor-font: '{editorFont}', Consolas, monospace;">
   <div class="editor-gutter" style="transform: translateY(-{scrollTop}px);">
     {#each lines as _, idx}
-      <div class="gutter-num" class:active-line={idx === activeLineIndex}>
+      <div class="gutter-num" class:active-line={idx + 1 === activeLine}>
         {idx + 1}
       </div>
     {/each}
   </div>
 
   <div class="editor-body">
+    {#if activeLine >= 1 && activeLine <= lines.length}
+      <div
+        class="active-line-backdrop"
+        style="transform: translateY({(activeLine - 1) * 20 - scrollTop}px);"
+      ></div>
+    {/if}
     <textarea
       bind:this={textareaEl}
       value={text}
@@ -77,6 +94,9 @@
       on:scroll={handleScroll}
       on:click={updateCursorLine}
       on:keyup={updateCursorLine}
+      on:select={updateCursorLine}
+      on:mouseup={updateCursorLine}
+      on:focus={updateCursorLine}
       on:keydown={handleKeydown}
       spellcheck="false"
       placeholder="Наименование; Характеристики; Ед. изм.; Количество (например: Сверло т/с; EDS08090-0; шт.; 2)"
@@ -118,15 +138,28 @@
   }
 
   .gutter-num.active-line {
-    color: var(--ctp-text);
+    color: var(--ctp-lavender, var(--ctp-text));
     font-weight: bold;
-    background-color: var(--ctp-surface0);
+    background-color: var(--ctp-surface0, rgba(255, 255, 255, 0.05));
   }
 
   .editor-body {
     flex: 1;
     position: relative;
     display: flex;
+    overflow: hidden;
+  }
+
+  .active-line-backdrop {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background-color: var(--ctp-surface0, rgba(255, 255, 255, 0.05));
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform;
   }
 
   textarea {
@@ -146,6 +179,8 @@
     word-break: break-word;
     overflow-y: scroll;
     box-sizing: border-box;
+    position: relative;
+    z-index: 1;
   }
 
   textarea::placeholder {
