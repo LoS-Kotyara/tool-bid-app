@@ -76,33 +76,56 @@
     const target = e.target as HTMLTextAreaElement;
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
 
+    // Единый физический предел прокрутки. У <textarea> и .editor-gutter он разный:
+    // Chromium в textarea позволяет прокрутить последнюю строку до самого верха,
+    // поэтому ограничиваем textarea пределом самого gutter, иначе номера строк
+    // упираются (299) и расходятся с текстом (315).
+    if (gutterEl && textareaEl) {
+      const maxAllowedScroll = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+      if (textareaEl.scrollTop > maxAllowedScroll) {
+        textareaEl.scrollTop = maxAllowedScroll;
+      }
+      gutterEl.scrollTop = textareaEl.scrollTop;
+      scrollTop = textareaEl.scrollTop;
+      return;
+    }
+
+    // Fallback, пока gutter ещё не смонтирован.
     const maxScroll = Math.max(0, target.scrollHeight - target.clientHeight);
     if (target.scrollTop > maxScroll) {
       target.scrollTop = maxScroll;
     }
 
     scrollTop = target.scrollTop;
-    if (gutterEl) {
-      gutterEl.scrollTop = target.scrollTop;
-    }
   }
 
   /**
-   * Мягкое прижатие оверскролла к максимуму и жёсткая синхронизация номеров строк.
-   * Нативный <textarea> при PgDown/End в конце списка допускает прокрутку последней
-   * строки к верхнему краю, тогда как .editor-gutter упирается в свой предел
-   * (scrollHeight - clientHeight) — из-за этого номера строк расходятся с текстом.
+   * Прижатие оверскролла к пределу Gutter и жёсткая синхронизация номеров строк.
+   * Максимум вычисляется строго по gutterEl (scrollHeight - clientHeight), а не по
+   * textarea: пределы у них физически разные, из-за чего при PgDown/End последняя
+   * строка уезжала наверх, а gutter останавливался выше.
    */
   function clampOverscroll() {
     if (!textareaEl) return;
+
+    if (gutterEl) {
+      const maxAllowedScroll = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+      if (textareaEl.scrollTop > maxAllowedScroll) {
+        textareaEl.scrollTop = maxAllowedScroll;
+      } else if (textareaEl.scrollTop < 0) {
+        textareaEl.scrollTop = 0;
+      }
+      gutterEl.scrollTop = textareaEl.scrollTop;
+      scrollTop = textareaEl.scrollTop;
+      return;
+    }
+
+    // Fallback, пока gutter ещё не смонтирован.
     const maxScroll = Math.max(0, textareaEl.scrollHeight - textareaEl.clientHeight);
     if (textareaEl.scrollTop > maxScroll) {
       textareaEl.scrollTop = maxScroll;
     } else if (textareaEl.scrollTop < 0) {
       textareaEl.scrollTop = 0;
-    }
-    if (gutterEl && gutterEl.scrollTop !== textareaEl.scrollTop) {
-      gutterEl.scrollTop = textareaEl.scrollTop;
     }
     scrollTop = textareaEl.scrollTop;
   }
@@ -172,7 +195,10 @@
     class="editor-gutter"
     bind:this={gutterEl}
     on:wheel|passive={(e) => {
-      if (textareaEl) textareaEl.scrollTop += e.deltaY;
+      if (textareaEl && gutterEl) {
+        const maxAllowed = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+        textareaEl.scrollTop = Math.min(maxAllowed, Math.max(0, textareaEl.scrollTop + e.deltaY));
+      }
     }}
   >
     <div class="gutter-inner">
