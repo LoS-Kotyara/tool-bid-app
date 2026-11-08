@@ -10,6 +10,8 @@
     redo: void;
   }>();
 
+  const lineHeight: number = 22;
+
   let textareaEl: HTMLTextAreaElement;
   let lines: string[] = [''];
   let activeLine: number = 1;
@@ -84,7 +86,7 @@
     {#if activeLine >= 1 && activeLine <= lines.length}
       <div
         class="active-line-backdrop"
-        style="transform: translateY({(activeLine - 1) * 20 - scrollTop}px);"
+        style="top: {(activeLine - 1) * lineHeight - scrollTop}px; height: {lineHeight}px;"
       ></div>
     {/if}
     <textarea
@@ -113,14 +115,16 @@
     background-color: var(--ctp-base);
     font-family: var(--editor-font);
     font-size: 12pt;
-    line-height: 20px;
+    line-height: 22px;
+    white-space: pre;
+    word-wrap: normal;
   }
 
   .editor-gutter {
     width: 48px;
     background-color: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
-    padding: 8px 0;
+    padding: 0;
     user-select: none;
     flex-shrink: 0;
     display: flex;
@@ -129,12 +133,13 @@
   }
 
   .gutter-num {
-    height: 20px;
+    height: 22px;
     padding-right: 10px;
     text-align: right;
     color: var(--ctp-overlay0);
-    font-size: 9.5pt;
-    line-height: 20px;
+    font-size: 12pt;
+    line-height: 22px;
+    box-sizing: border-box;
   }
 
   .gutter-num.active-line {
@@ -152,32 +157,31 @@
 
   .active-line-backdrop {
     position: absolute;
-    top: 8px;
     left: 0;
-    right: 0;
-    height: 20px;
+    width: 100%;
+    height: 22px;
     background-color: var(--ctp-surface0, rgba(255, 255, 255, 0.05));
     pointer-events: none;
     z-index: 0;
-    will-change: transform;
   }
 
   textarea {
     flex: 1;
     height: 100%;
-    padding: 8px 12px;
+    padding: 0 12px;
     margin: 0;
     border: none;
     background: transparent;
     color: var(--ctp-text);
     font-family: inherit;
-    font-size: inherit;
-    line-height: 20px;
+    font-size: 12pt;
+    line-height: 22px;
     resize: none;
     outline: none;
-    white-space: pre-wrap;
-    word-break: break-word;
+    white-space: pre;
+    overflow-x: auto;
     overflow-y: scroll;
+    word-wrap: normal;
     box-sizing: border-box;
     position: relative;
     z-index: 1;
@@ -187,5 +191,6 @@
     color: var(--ctp-overlay0);
     font-style: italic;
     font-size: 10.5pt;
+    line-height: 22px;
   }
 </style>
