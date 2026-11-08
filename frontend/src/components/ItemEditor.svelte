@@ -75,10 +75,59 @@
   function handleScroll(e: Event) {
     const target = e.target as HTMLTextAreaElement;
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
-    scrollTop = target.scrollTop;
-    if (gutterEl) {
-      gutterEl.scrollTop = target.scrollTop;
+
+    // Единый физический предел прокрутки. У <textarea> и .editor-gutter он разный:
+    // Chromium в textarea позволяет прокрутить последнюю строку до самого верха,
+    // поэтому ограничиваем textarea пределом самого gutter, иначе номера строк
+    // упираются (299) и расходятся с текстом (315).
+    if (gutterEl && textareaEl) {
+      const maxAllowedScroll = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+      if (textareaEl.scrollTop > maxAllowedScroll) {
+        textareaEl.scrollTop = maxAllowedScroll;
+      }
+      gutterEl.scrollTop = textareaEl.scrollTop;
+      scrollTop = textareaEl.scrollTop;
+      return;
     }
+
+    // Fallback, пока gutter ещё не смонтирован.
+    const maxScroll = Math.max(0, target.scrollHeight - target.clientHeight);
+    if (target.scrollTop > maxScroll) {
+      target.scrollTop = maxScroll;
+    }
+
+    scrollTop = target.scrollTop;
+  }
+
+  /**
+   * Прижатие оверскролла к пределу Gutter и жёсткая синхронизация номеров строк.
+   * Максимум вычисляется строго по gutterEl (scrollHeight - clientHeight), а не по
+   * textarea: пределы у них физически разные, из-за чего при PgDown/End последняя
+   * строка уезжала наверх, а gutter останавливался выше.
+   */
+  function clampOverscroll() {
+    if (!textareaEl) return;
+
+    if (gutterEl) {
+      const maxAllowedScroll = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+      if (textareaEl.scrollTop > maxAllowedScroll) {
+        textareaEl.scrollTop = maxAllowedScroll;
+      } else if (textareaEl.scrollTop < 0) {
+        textareaEl.scrollTop = 0;
+      }
+      gutterEl.scrollTop = textareaEl.scrollTop;
+      scrollTop = textareaEl.scrollTop;
+      return;
+    }
+
+    // Fallback, пока gutter ещё не смонтирован.
+    const maxScroll = Math.max(0, textareaEl.scrollHeight - textareaEl.clientHeight);
+    if (textareaEl.scrollTop > maxScroll) {
+      textareaEl.scrollTop = maxScroll;
+    } else if (textareaEl.scrollTop < 0) {
+      textareaEl.scrollTop = 0;
+    }
+    scrollTop = textareaEl.scrollTop;
   }
 
   function updateCursorLine() {
@@ -92,6 +141,39 @@
       }
     }
     activeLine = newlineCount + 1;
+  }
+
+  /**
+   * Смещение каретки по строкам на delta (положительное — вниз, отрицательное — вверх).
+   * Колонка сохраняется, но обрезается по длине целевой строки. Нужна для PgDown/PgUp:
+   * мы отменяем нативную прокрутку WebView2 (она даёт оверскролл мимо предела Gutter),
+   * поэтому каретку переносим вручную — в видимую зону, без нативного scrollIntoView.
+   */
+  function moveCaretByLines(delta: number) {
+    if (!textareaEl) return;
+    const pos = textareaEl.selectionStart ?? 0;
+    const val = textareaEl.value;
+    const textLines = val.split('\n');
+    let currLine = 0;
+    let currCol = 0;
+    let charCount = 0;
+    for (let i = 0; i < textLines.length; i++) {
+      const len = textLines[i].length;
+      if (charCount <= pos && pos <= charCount + len) {
+        currLine = i;
+        currCol = pos - charCount;
+        break;
+      }
+      charCount += len + 1;
+    }
+    const targetLine = Math.max(0, Math.min(textLines.length - 1, currLine + delta));
+    const targetCol = Math.min(currCol, textLines[targetLine].length);
+    let newPos = 0;
+    for (let i = 0; i < targetLine; i++) {
+      newPos += textLines[i].length + 1;
+    }
+    newPos += targetCol;
+    textareaEl.setSelectionRange(newPos, newPos);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -109,8 +191,60 @@
       dispatch('redo');
     }
 
+    // PgDown/PgUp перехватываем полностью: WebView2 при нативной прокрутке двигает
+    // каретку через внутренний scrollIntoView и допускает оверскролл текста мимо
+    // предела Gutter. Шаг считаем сами и сразу выравниваем номера строк.
+    if (e.code === 'PageDown') {
+      e.preventDefault();
+      if (textareaEl && gutterEl) {
+        const pageSize = Math.max(lineHeight, textareaEl.clientHeight - lineHeight * 2);
+        const maxAllowed = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+        textareaEl.scrollTop = Math.min(maxAllowed, textareaEl.scrollTop + pageSize);
+        gutterEl.scrollTop = textareaEl.scrollTop;
+        scrollTop = textareaEl.scrollTop;
+        const pageLines = Math.max(1, Math.floor(pageSize / lineHeight));
+        moveCaretByLines(pageLines);
+        updateCursorLine();
+        // Страховка: если браузер при перемещении каретки всё же прокрутит
+        // textarea, повторно прижимаем позицию к пределу Gutter.
+        requestAnimationFrame(clampOverscroll);
+      }
+      return;
+    }
+
+    if (e.code === 'PageUp') {
+      e.preventDefault();
+      if (textareaEl && gutterEl) {
+        const pageSize = Math.max(lineHeight, textareaEl.clientHeight - lineHeight * 2);
+        textareaEl.scrollTop = Math.max(0, textareaEl.scrollTop - pageSize);
+        gutterEl.scrollTop = textareaEl.scrollTop;
+        scrollTop = textareaEl.scrollTop;
+        const pageLines = Math.max(1, Math.floor(pageSize / lineHeight));
+        moveCaretByLines(-pageLines);
+        updateCursorLine();
+        // Страховка: если браузер при перемещении каретки всё же прокрутит
+        // textarea, повторно прижимаем позицию к пределу Gutter.
+        requestAnimationFrame(clampOverscroll);
+      }
+      return;
+    }
+
+    // Home/End без Ctrl — оставляем нативное поведение каретки, но гарантируем
+    // выравнивание Gutter после того, как браузер прокрутит textarea.
+    if (!e.ctrlKey && !e.metaKey && (e.code === 'Home' || e.code === 'End')) {
+      requestAnimationFrame(() => {
+        if (gutterEl && textareaEl) gutterEl.scrollTop = textareaEl.scrollTop;
+      });
+    }
+
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
     requestAnimationFrame(updateCursorLine);
+
+    // Мягко прижимаем оверскролл (PgDown/End в конце списка) к максимуму и
+    // передаём позицию в gutter сразу и после того, как браузер выполнит
+    // дефолтное действие клавиши.
+    clampOverscroll();
+    requestAnimationFrame(clampOverscroll);
   }
 
   onMount(() => {
@@ -136,7 +270,16 @@
 </script>
 
 <div class="editor-container" style="--editor-font: '{editorFont}', Consolas, monospace;">
-  <div class="editor-gutter" bind:this={gutterEl}>
+  <div
+    class="editor-gutter"
+    bind:this={gutterEl}
+    on:wheel|passive={(e) => {
+      if (textareaEl && gutterEl) {
+        const maxAllowed = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+        textareaEl.scrollTop = Math.min(maxAllowed, Math.max(0, textareaEl.scrollTop + e.deltaY));
+      }
+    }}
+  >
     <div class="gutter-inner">
       {#each lines as _, idx}
         <div
@@ -212,6 +355,8 @@
     box-sizing: border-box;
     flex-shrink: 0;
     user-select: none;
+    cursor: default;
+    pointer-events: auto;
   }
 
   .gutter-inner {
