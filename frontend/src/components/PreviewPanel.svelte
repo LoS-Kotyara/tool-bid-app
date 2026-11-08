@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   export let previewHtml: string = '';
 
@@ -12,20 +12,41 @@
   // Масштаб ленты листов передаётся CSS-переменной в документ предпросмотра
   const ZOOM_VAR = '--zoom-level';
   const SCALE_WRAPPER_CLASS = 'a4-scale-wrapper';
+  // Селектор листов и класс активной страницы в документе предпросмотра
+  const PAGE_SELECTOR = '.a4-page';
+  const ACTIVE_PAGE_CLASS = 'active';
 
   let zoomLevel: number = 100;
   let iframeEl: HTMLIFrameElement;
   let renderTimer: number | null = null;
-  let pendingHtml: string = '';
+  let pendingHtml: string = previewHtml;
   let renderedHtml: string = '';
   // Постраничный показ: на экране виден ровно один лист (как в эталоне bid_app_gui.py)
   let currentPage: number = 1;
   let totalPages: number = 1;
+  // Защита от рекурсии: запись документа сама вызывает load у iframe, а восстановление
+  // содержимого вызывается из обработчиков DOM предпросмотра
+  let isWriting: boolean = false;
+  let isRecovering: boolean = false;
+  let resizeObserver: ResizeObserver | null = null;
 
   $: scale = zoomLevel / 100;
-  $: canPrev = currentPage > 1;
-  $: canNext = currentPage < totalPages;
 
+  // Число листов считается из входного HTML-пропса (источник истины), а не из DOM
+  // iframe: при переключении режима «Сплит» -> «Ввод» -> «Сплит» iframe сбрасывается
+  // в about:blank, его DOM пуст, и кнопки пагинации «залипали» в disabled.
+  $: if (previewHtml) {
+    totalPages = extractTotalPages(previewHtml);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+  } else if (totalPages !== 1 || currentPage !== 1) {
+    totalPages = 1;
+    currentPage = 1;
+  }
+
+  // Любое обновление пропса HTML гарантированно доходит до iframe: если документ
+  // предпросмотра пуст (панель была скрыта/пересоздана), запись идёт немедленно,
+  // иначе — с дебаунсом, чтобы набор текста не перезаписывал DOM на каждый символ.
   $: if (iframeEl && previewHtml && previewHtml !== renderedHtml) {
     scheduleRender(previewHtml);
   }
@@ -37,36 +58,73 @@
   }
 
   function applyZoom(value: number) {
-    const doc = iframeEl?.contentDocument;
+    const doc = getIframeDocument();
     if (!doc || !doc.documentElement) return;
     doc.documentElement.style.setProperty(ZOOM_VAR, String(value));
   }
 
-  // showPage оставляет видимым единственный лист: снимает active со всех страниц
-  // документа предпросмотра, помечает нужную и синхронизирует счётчик в тулбаре
-  function showPage(pageNum: number, resetScroll: boolean = true) {
-    const doc = iframeEl?.contentDocument;
+  // getIframeDocument возвращает документ предпросмотра независимо от способа доступа
+  function getIframeDocument(): Document | null {
+    if (!iframeEl) return null;
+    return iframeEl.contentDocument || iframeEl.contentWindow?.document || null;
+  }
+
+  // hasPageNodes проверяет, что документ предпросмотра реально содержит листы А4
+  function hasPageNodes(doc: Document | null): boolean {
+    if (!doc) return false;
+    return doc.querySelectorAll(PAGE_SELECTOR).length > 0;
+  }
+
+  // extractTotalPages считает листы по HTML-пропсу, не завися от готовности iframe
+  function extractTotalPages(htmlContent: string): number {
+    if (!htmlContent) return 1;
+    const matches = htmlContent.match(/class=["'][^"']*a4-page[^"']*["']/g);
+    return matches && matches.length > 0 ? matches.length : 1;
+  }
+
+  // showPage переключает активную страницу и сразу применяет её к DOM предпросмотра
+  function showPage(targetPage: number | string) {
+    const pageNum = Number(targetPage);
+    if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) return;
+    currentPage = pageNum;
+    applyPageToDOM(currentPage);
+  }
+
+  // applyPageToDOM оставляет видимым единственный лист: снимает active со всех страниц
+  // документа предпросмотра, помечает нужную и возвращает прокрутку к началу листа
+  function applyPageToDOM(pageNum: number) {
+    if (!iframeEl) return;
+    const doc = getIframeDocument();
     if (!doc) return;
 
-    const pages = Array.from(doc.querySelectorAll<HTMLElement>('.a4-page'));
+    const pages = Array.from(doc.querySelectorAll<HTMLElement>(PAGE_SELECTOR));
+
+    // iframe потерял содержимое (переключение режимов/пересоздание) — заполняем заново
     if (pages.length === 0) {
-      totalPages = 1;
-      currentPage = 1;
+      recoverDocument();
       return;
     }
 
-    totalPages = pages.length;
-    const target = Math.min(Math.max(Math.round(pageNum), 1), pages.length);
+    pages.forEach((page, idx) => {
+      if (idx + 1 === pageNum) {
+        page.classList.add(ACTIVE_PAGE_CLASS);
+      } else {
+        page.classList.remove(ACTIVE_PAGE_CLASS);
+      }
+    });
 
-    pages.forEach((page) => page.classList.remove('active'));
-    const page = doc.getElementById(`page-${target}`) ?? pages[target - 1];
-    if (page) {
-      page.classList.add('active');
-    }
+    scrollDocumentToTop(doc);
+  }
 
-    currentPage = target;
-    if (resetScroll) {
-      scrollDocumentToTop(doc);
+  // recoverDocument заполняет iframe заново, если он сбросился в about:blank
+  function recoverDocument() {
+    if (isRecovering || isWriting) return;
+    if (!pendingHtml && !previewHtml) return;
+    isRecovering = true;
+    try {
+      renderDocument();
+    } finally {
+      isRecovering = false;
     }
   }
 
@@ -80,49 +138,62 @@
     }
   }
 
-  function prevPage() {
-    if (currentPage > 1) showPage(currentPage - 1);
-  }
-
-  function nextPage() {
-    if (currentPage < totalPages) showPage(currentPage + 1);
-  }
-
   // scheduleRender откладывает перезапись документа предпросмотра на RENDER_DEBOUNCE_MS,
-  // схлопывая серию быстрых правок в одно обновление. Первый рендер выполняется сразу.
+  // схлопывая серию быстрых правок в одно обновление. Немедленная запись выполняется,
+  // когда документ предпросмотра пуст (первый рендер или сброс iframe при смене режима).
   function scheduleRender(htmlContent: string) {
     pendingHtml = htmlContent;
     if (renderTimer !== null) {
       window.clearTimeout(renderTimer);
       renderTimer = null;
     }
-    if (renderedHtml === '') {
-      updateIframeContent(pendingHtml);
+    if (renderedHtml === '' || !hasPageNodes(getIframeDocument())) {
+      renderDocument();
       return;
     }
     renderTimer = window.setTimeout(() => {
       renderTimer = null;
-      updateIframeContent(pendingHtml);
+      renderDocument();
     }, RENDER_DEBOUNCE_MS);
   }
 
-  function updateIframeContent(htmlContent: string) {
+  // renderDocument — единственная точка записи HTML в iframe. Вызывается при
+  // монтировании, при обновлении пропса и при восстановлении сброшенного документа.
+  // Идемпотентен: на неизменном документе лишь синхронизирует масштаб и активный лист,
+  // поэтому кнопки пагинации всегда работают с актуальным DOM.
+  function renderDocument() {
     if (!iframeEl) return;
-    const doc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+    const doc = getIframeDocument();
     if (!doc) return;
 
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-    renderedHtml = htmlContent;
+    const htmlContent = pendingHtml || previewHtml;
+    if (!htmlContent) return;
 
-    ensureScaleWrapper(doc);
-    applyZoom(scale);
-    // Число листов пересчитывается, активная страница сохраняется (или усекается,
-    // если после правки листов стало меньше)
-    showPage(currentPage, false);
-    // Ctrl + колесо мыши над листом: масштаб без перезагрузки документа
-    doc.addEventListener('wheel', handleInnerWheel, { passive: false });
+    if (htmlContent === renderedHtml && hasPageNodes(doc)) {
+      applyZoom(scale);
+      applyPageToDOM(currentPage);
+      return;
+    }
+
+    isWriting = true;
+    try {
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+      renderedHtml = htmlContent;
+
+      ensureScaleWrapper(doc);
+      applyZoom(scale);
+      // Применяем активную страницу к свежезаписанному DOM
+      applyPageToDOM(currentPage);
+      // Ctrl + колесо мыши над листом: масштаб без перезагрузки документа
+      doc.addEventListener('wheel', handleInnerWheel, { passive: false });
+    } finally {
+      // load-событие от собственной записи гасится флагом isWriting
+      window.setTimeout(() => {
+        isWriting = false;
+      }, 0);
+    }
   }
 
   // ensureScaleWrapper оборачивает ленту листов в единый масштабируемый контейнер,
@@ -157,13 +228,19 @@
   }
 
   function handleIframeLoad() {
-    // После (пере)загрузки документа масштабируемая обёртка, масштаб и активный
-    // лист восстанавливаются
-    const doc = iframeEl?.contentDocument;
+    // Собственная запись в документ тоже вызывает load — не перезаписываем сами себя
+    if (isWriting) return;
+    const doc = getIframeDocument();
     if (!doc) return;
     ensureScaleWrapper(doc);
     applyZoom(scale);
-    showPage(currentPage, false);
+    // iframe потерял документ (перемонтирование/сброс в about:blank) — заполняем заново,
+    // иначе клики по [◀]/[▶] не найдут элементов .a4-page
+    if (!hasPageNodes(doc)) {
+      recoverDocument();
+      return;
+    }
+    applyPageToDOM(currentPage);
   }
 
   function zoomIn() {
@@ -196,10 +273,31 @@
     printWindow.print();
   }
 
+  // Гарантированная запись при монтировании: переход «Ввод» -> «Сплит» пересоздаёт
+  // компонент, и предпросмотр обязан сразу содержать листы
+  onMount(() => {
+    renderDocument();
+    if (typeof ResizeObserver !== 'undefined' && iframeEl) {
+      // Страховка на смену видимости панели: если iframe при показе потерял документ,
+      // содержимое восстанавливается. Прокрутка и активный лист не сбрасываются,
+      // пока документ на месте (иначе перетаскивание разделителя дёргало бы лист).
+      resizeObserver = new ResizeObserver(() => {
+        if (!hasPageNodes(getIframeDocument())) {
+          recoverDocument();
+        }
+      });
+      resizeObserver.observe(iframeEl);
+    }
+  });
+
   onDestroy(() => {
     if (renderTimer !== null) {
       window.clearTimeout(renderTimer);
       renderTimer = null;
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
     }
   });
 </script>
@@ -209,16 +307,18 @@
   <div class="preview-toolbar">
     <div class="toolbar-group">
       <button
-        class="tool-btn"
+        class="tool-btn page-btn"
+        type="button"
         title="Предыдущая страница"
-        disabled={!canPrev}
-        on:click={prevPage}>◀</button>
+        disabled={currentPage <= 1}
+        on:click={() => showPage(currentPage - 1)}>◀</button>
       <span class="page-indicator">Стр. {currentPage} из {totalPages}</span>
       <button
-        class="tool-btn"
+        class="tool-btn page-btn"
+        type="button"
         title="Следующая страница"
-        disabled={!canNext}
-        on:click={nextPage}>▶</button>
+        disabled={currentPage >= totalPages}
+        on:click={() => showPage(currentPage + 1)}>▶</button>
     </div>
 
     <div class="toolbar-group">
@@ -307,6 +407,14 @@
   .zoom-text {
     min-width: 50px;
     font-size: 9.5pt;
+  }
+
+  /* Кнопки постраничной навигации: блокируются только по границам диапазона
+     (currentPage/totalPages), без посторонних флагов загрузки/рендеринга */
+  .page-btn {
+    min-width: 26px;
+    font-size: 9pt;
+    line-height: 1;
   }
 
   /* Счётчик страниц: «Стр. X из Y» (эталон bid_app_gui.py) */
