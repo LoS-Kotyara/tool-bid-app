@@ -13,6 +13,7 @@
   const lineHeight: number = 22;
 
   let textareaEl: HTMLTextAreaElement;
+  let gutterEl: HTMLDivElement;
   let mirrorEl: HTMLDivElement;
   let lines: string[] = [''];
   let lineHeights: number[] = [];
@@ -74,6 +75,9 @@
   function handleScroll(e: Event) {
     const target = e.target as HTMLTextAreaElement;
     scrollTop = target.scrollTop;
+    if (gutterEl) {
+      gutterEl.scrollTop = target.scrollTop;
+    }
   }
 
   function updateCursorLine() {
@@ -130,16 +134,18 @@
 </script>
 
 <div class="editor-container" style="--editor-font: '{editorFont}', Consolas, monospace;">
-  <div class="editor-gutter" style="transform: translateY(-{scrollTop}px);">
-    {#each lines as _, idx}
-      <div
-        class="gutter-num"
-        class:active-line={idx + 1 === activeLine}
-        style="height: {lineHeights[idx] || lineHeight}px; min-height: {lineHeights[idx] || lineHeight}px;"
-      >
-        {idx + 1}
-      </div>
-    {/each}
+  <div class="editor-gutter" bind:this={gutterEl}>
+    <div class="gutter-inner">
+      {#each lines as _, idx}
+        <div
+          class="gutter-num"
+          class:active-line={idx + 1 === activeLine}
+          style="height: {lineHeights[idx] || lineHeight}px; min-height: {lineHeights[idx] || lineHeight}px;"
+        >
+          {idx + 1}
+        </div>
+      {/each}
+    </div>
   </div>
 
   <div class="editor-body">
@@ -192,23 +198,27 @@
     width: 46px;
     min-width: 46px;
     max-width: 46px;
+    height: 100%;
+    overflow-y: hidden;
+    overflow-x: hidden;
     background-color: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
     padding: 0;
     box-sizing: border-box;
-    overflow: hidden;
-    user-select: none;
     flex-shrink: 0;
+    user-select: none;
+  }
+
+  .gutter-inner {
     display: flex;
     flex-direction: column;
-    will-change: transform;
+    width: 100%;
   }
 
   .gutter-num {
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    min-height: 22px;
     box-sizing: border-box;
     line-height: 22px;
     padding-right: 10px;
