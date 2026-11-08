@@ -1,5 +1,7 @@
 package export
 
+// previewHTMLHeader — стили автономного предпросмотра: дискретные листы А4 (210x297 мм)
+// на экране и полное совпадение с печатью (@page A4, поля 10 мм, без колонтитулов).
 const previewHTMLHeader = `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -18,12 +20,15 @@ const previewHTMLHeader = `<!DOCTYPE html>
     margin: 0;
     padding: 0;
   }
+  /* ===== Экранный режим: вертикальная лента дискретных листов на тёмном фоне ===== */
   body {
     background-color: #2b2d3a;
     margin: 0;
-    padding: 20px 0;
+    padding: 24px 0;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
     color: #000000;
     font-family: Calibri, Arial, sans-serif;
     font-size: 12pt;
@@ -31,13 +36,20 @@ const previewHTMLHeader = `<!DOCTYPE html>
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .page-sheet {
+
+  /* ===== Дискретный лист А4: фиксированная геометрия и изоляция содержимого ===== */
+  .a4-page {
     width: 210mm;
-    min-height: 297mm;
+    height: 297mm;
+    max-height: 297mm;
     padding: 10mm;
-    box-sizing: border-box;
     background: #ffffff;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    contain: layout paint;
   }
 
   /* ===== Строгая 6-колоночная сетка 1С/Excel (A-F), базовая ширина 190 мм ===== */
@@ -117,11 +129,12 @@ const previewHTMLHeader = `<!DOCTYPE html>
     white-space: nowrap;
   }
 
-  /* ===== Раздел II. Непрерывный табличный поток с повтором шапки ===== */
+  /* ===== Раздел II. Таблица спецификации: шапка повторяется на каждом листе ===== */
   .items-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    font-family: Calibri, Arial, sans-serif;
   }
   .items-table thead {
     display: table-header-group;
@@ -155,9 +168,30 @@ const previewHTMLHeader = `<!DOCTYPE html>
     padding: 8px 4px;
   }
 
+  /* ===== Печать: листы стыкуются без экранной косметики ===== */
   @media print {
-    body { background: transparent; padding: 0; display: block; }
-    .page-sheet { width: 100%; min-height: auto; padding: 0; box-shadow: none; }
+    body {
+      background: transparent;
+      padding: 0;
+      gap: 0;
+      display: block;
+    }
+    .a4-page {
+      box-shadow: none;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      padding: 0;
+      overflow: visible;
+      page-break-after: always;
+      break-after: page;
+    }
+    /* Последний лист не должен порождать пустую страницу */
+    .a4-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
   }
 </style>
 </head>

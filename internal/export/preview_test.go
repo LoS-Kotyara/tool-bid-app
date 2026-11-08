@@ -1,6 +1,7 @@
 package export
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -187,7 +188,27 @@ func TestPreviewHTMLHeaderCellsUseGridPlacement(t *testing.T) {
 }
 
 
-func TestPreviewHTMLHasNoPageFooters(t *testing.T) {
+// countPreviewPages считает количество дискретных листов А4 в готовом HTML
+func countPreviewPages(htmlStr string) int {
+	return strings.Count(htmlStr, `class="a4-page"`)
+}
+
+// makePreviewItems формирует n позиций спецификации с последовательной нумерацией
+func makePreviewItems(n int) []model.Item {
+	items := make([]model.Item, 0, n)
+	for i := 1; i <= n; i++ {
+		items = append(items, model.Item{
+			Num:  i,
+			Name: fmt.Sprintf("Инструмент %d", i),
+			Desc: fmt.Sprintf("Характеристика позиции %d", i),
+			Unit: "шт.",
+			Qty:  "1",
+		})
+	}
+	return items
+}
+
+func TestPreviewHTMLHasNoFootersOrPageNumbers(t *testing.T) {
 	htmlStr := renderPreview(t, newPreviewTestDocument())
 
 	forbidden := []string{
@@ -198,13 +219,165 @@ func TestPreviewHTMLHasNoPageFooters(t *testing.T) {
 		"counter(page",
 		"counter(pages",
 		"Страница ",
-		"page-break-after",
 	}
 	assertPreviewNotContains(t, htmlStr, forbidden)
 
-	// Документ рендерится единым листом/потоком
-	if count := strings.Count(htmlStr, `class="page-sheet"`); count != 1 {
-		t.Errorf("expected exactly 1 page-sheet container, got %d", count)
+	// Каждый лист — самостоятельный контейнер, разрыв страницы задаётся самим листом
+	assertPreviewContains(t, htmlStr, []string{
+		`<div class="a4-page" id="page-1">`,
+		"page-break-after: always;",
+		"break-after: page;",
+	})
+
+	// Две позиции помещаются на единственный лист
+	if count := countPreviewPages(htmlStr); count != 1 {
+		t.Errorf("expected exactly 1 a4-page container for 2 items, got %d", count)
+	}
+}
+
+func TestPreviewHTMLDiscretePageGeometry(t *testing.T) {
+	htmlStr := renderPreview(t, newPreviewTestDocument())
+
+	assertPreviewContains(t, htmlStr, []string{
+		// Экранный режим: лента дискретных листов
+		"display: flex;\n    flex-direction: column;\n    align-items: center;\n    gap: 20px;",
+		"padding: 24px 0;",
+		// Геометрия листа А4 и изоляция содержимого
+		"width: 210mm;",
+		"height: 297mm;",
+		"max-height: 297mm;",
+		"padding: 10mm;",
+		"overflow: hidden;",
+		"contain: layout paint;",
+		// Печать: листы стыкуются без экранной косметики
+		"@media print {",
+		".a4-page:last-child {",
+	})
+
+	// На экране каждый лист отделён тенью, при печати тень снимается
+	if count := strings.Count(htmlStr, "page-break-after: always;"); count != 2 {
+		t.Errorf("expected page-break-after on screen and print rules, got %d declarations", count)
+	}
+}
+
+func TestBuildPreviewPagesPagination(t *testing.T) {
+	cases := []struct {
+		name    string
+		items   int
+		expected []int
+	}{
+		{name: "empty document", items: 0, expected: []int{0}},
+		{name: "single item", items: 1, expected: []int{1}},
+		{name: "exactly first page", items: 27, expected: []int{27}},
+		{name: "one over first page", items: 28, expected: []int{27, 1}},
+		{name: "two pages full tail", items: 69, expected: []int{27, 42}},
+		{name: "three pages with one row", items: 70, expected: []int{27, 42, 1}},
+		{name: "three pages full", items: 111, expected: []int{27, 42, 42}},
+		{name: "four pages", items: 112, expected: []int{27, 42, 42, 1}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pages := buildPreviewPages(makePreviewItems(tc.items))
+
+			if len(pages) != len(tc.expected) {
+				t.Fatalf("buildPreviewPages(%d items) returned %d pages, want %d", tc.items, len(pages), len(tc.expected))
+			}
+
+			total := 0
+			for i, page := range pages {
+				if page.PageNum != i+1 {
+					t.Errorf("page %d has PageNum %d, want %d", i, page.PageNum, i+1)
+				}
+				if page.IsFirst != (i == 0) {
+					t.Errorf("page %d has IsFirst=%v, want %v", i, page.IsFirst, i == 0)
+				}
+				if len(page.Items) != tc.expected[i] {
+					t.Errorf("page %d contains %d items, want %d", i+1, len(page.Items), tc.expected[i])
+				}
+				total += len(page.Items)
+			}
+
+			if total != tc.items {
+				t.Errorf("pages contain %d items in total, want %d", total, tc.items)
+			}
+
+			// Позиции нарезаны последовательно и без потерь
+			seen := 0
+			for _, page := range pages {
+				for _, item := range page.Items {
+					seen++
+					if item.Num != seen {
+						t.Errorf("item %d got Num %d: pagination order or bounds broken", seen, item.Num)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestPreviewHTMLRendersDiscretePagesWithRepeatedTableHeader(t *testing.T) {
+	doc := newPreviewTestDocument()
+	doc.Items = makePreviewItems(70)
+
+	htmlStr := renderPreview(t, doc)
+
+	if count := countPreviewPages(htmlStr); count != 3 {
+		t.Fatalf("expected 3 a4-page containers for 70 items, got %d", count)
+	}
+
+	assertPreviewContains(t, htmlStr, []string{
+		`<div class="a4-page" id="page-1">`,
+		`<div class="a4-page" id="page-2">`,
+		`<div class="a4-page" id="page-3">`,
+	})
+
+	// Шапка таблицы спецификации повторяется на каждом листе
+	tableHead := `<th class="col-name">Наименов. товара</th>`
+	if count := strings.Count(htmlStr, tableHead); count != 3 {
+		t.Errorf("expected items-table header repeated on all 3 pages, got %d occurrences", count)
+	}
+
+	// Шапка заявки, подписанты и разделы печатаются только на первом листе
+	firstPageOnly := []string{
+		`<td class="doc-title">Заявка на закупку</td>`,
+		`ПОДРАЗДЕЛЕНИЕ`,
+		`ИНИЦИАТОР ЗАКУПКИ`,
+		`КУРАТОР ЗАКУПКИ`,
+		`I. Общие сведения`,
+		`II. Техническая часть документации`,
+	}
+	for _, token := range firstPageOnly {
+		if count := strings.Count(htmlStr, token); count != 1 {
+			t.Errorf("expected %q only on the first page (1 occurrence), got %d", token, count)
+		}
+	}
+
+	// Позиции 28-й и 70-й строк находятся на листах 2 и 3 соответственно
+	page2 := htmlStr[strings.Index(htmlStr, `id="page-2"`):]
+	page3 := page2[strings.Index(page2, `id="page-3"`):]
+
+	if !strings.Contains(page2, "Инструмент 28") || strings.Contains(page2, "Инструмент 27<") {
+		t.Errorf("page 2 must start with item 28 and must not contain item 27")
+	}
+	if !strings.Contains(page3, "Инструмент 70") || strings.Contains(page3, "Инструмент 69<") {
+		t.Errorf("page 3 must start with item 70 and must not contain item 69")
+	}
+
+	// Каждый лист начинается сразу с таблицы спецификации
+	for _, id := range []string{`id="page-2"`, `id="page-3"`} {
+		pageStart := strings.Index(htmlStr, id)
+		if pageStart < 0 {
+			t.Fatalf("page container %s was not rendered", id)
+		}
+		pageBody := htmlStr[pageStart:]
+		nextItems := strings.Index(pageBody, `<table class="items-table">`)
+		if nextItems < 0 {
+			t.Fatalf("page container %s has no items table", id)
+		}
+		if strings.Contains(pageBody[:nextItems], "section-title") {
+			t.Errorf("page container %s must not repeat section titles", id)
+		}
 	}
 }
 
@@ -230,7 +403,9 @@ func TestPreviewHTMLUsesWhiteBackgroundOnly(t *testing.T) {
 	// Тёмный фон предназначен только для экранного просмотра и снимается при печати
 	assertPreviewContains(t, htmlStr, []string{
 		"background-color: #2b2d3a;",
-		".page-sheet { width: 100%; min-height: auto; padding: 0; box-shadow: none; }",
+		"box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);",
+		"background: transparent;",
+		"box-shadow: none;",
 	})
 }
 
@@ -281,7 +456,7 @@ func TestPreviewHTMLDocumentStructureOrder(t *testing.T) {
 	body := htmlStr[bodyStart:]
 
 	assertPreviewOrder(t, body, []string{
-		`<div class="page-sheet">`,
+		`<div class="a4-page" id="page-1">`,
 		`<td class="doc-title">Заявка на закупку</td>`,
 		`ПОДРАЗДЕЛЕНИЕ`,
 		`Должность`,
@@ -304,7 +479,7 @@ func TestPreviewHTMLDocumentStructureOrder(t *testing.T) {
 }
 
 
-func TestPreviewHTMLRendersItemsInContinuousTable(t *testing.T) {
+func TestPreviewHTMLRendersItemsInItemsTable(t *testing.T) {
 	htmlStr := renderPreview(t, newPreviewTestDocument())
 
 	assertPreviewContains(t, htmlStr, []string{
