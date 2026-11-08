@@ -98,7 +98,7 @@
 
   <div class="form-row full-width">
     <div class="form-group">
-      <label for="qualityReq">Требования к качеству (100% ширины)</label>
+      <label for="qualityReq">Требования к качеству</label>
       <input id="qualityReq" type="text" placeholder="Без дефектов, заводской сертификат качества" bind:value={meta.qualityReq} on:input={onFieldChange} />
     </div>
   </div>

@@ -47,7 +47,7 @@
 
   async function updateLineHeights() {
     if (!textareaEl) return;
-    const newWidth = textareaEl.clientWidth;
+    const newWidth = textareaEl.clientWidth || textareaEl.getBoundingClientRect().width || 500;
     if (newWidth > 0 && newWidth !== textareaWidth) {
       textareaWidth = newWidth;
     }
@@ -58,7 +58,7 @@
     const newHeights = new Array(len);
     for (let i = 0; i < len; i++) {
       const h = (children[i] as HTMLElement).offsetHeight;
-      newHeights[i] = h > 0 ? h : lineHeight;
+      newHeights[i] = h >= lineHeight ? h : lineHeight;
     }
     lineHeights = newHeights;
   }
@@ -189,10 +189,14 @@
   }
 
   .editor-gutter {
-    width: 48px;
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
     background-color: var(--ctp-mantle);
     border-right: 1px solid var(--ctp-surface0);
     padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
     user-select: none;
     flex-shrink: 0;
     display: flex;
@@ -208,7 +212,8 @@
     font-size: 12pt;
     line-height: 22px;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
+    white-space: nowrap;
   }
 
   .gutter-num.active-line {
