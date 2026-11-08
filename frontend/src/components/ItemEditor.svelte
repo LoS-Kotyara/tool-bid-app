@@ -75,10 +75,36 @@
   function handleScroll(e: Event) {
     const target = e.target as HTMLTextAreaElement;
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
+
+    const maxScroll = Math.max(0, target.scrollHeight - target.clientHeight);
+    if (target.scrollTop > maxScroll) {
+      target.scrollTop = maxScroll;
+    }
+
     scrollTop = target.scrollTop;
     if (gutterEl) {
       gutterEl.scrollTop = target.scrollTop;
     }
+  }
+
+  /**
+   * Мягкое прижатие оверскролла к максимуму и жёсткая синхронизация номеров строк.
+   * Нативный <textarea> при PgDown/End в конце списка допускает прокрутку последней
+   * строки к верхнему краю, тогда как .editor-gutter упирается в свой предел
+   * (scrollHeight - clientHeight) — из-за этого номера строк расходятся с текстом.
+   */
+  function clampOverscroll() {
+    if (!textareaEl) return;
+    const maxScroll = Math.max(0, textareaEl.scrollHeight - textareaEl.clientHeight);
+    if (textareaEl.scrollTop > maxScroll) {
+      textareaEl.scrollTop = maxScroll;
+    } else if (textareaEl.scrollTop < 0) {
+      textareaEl.scrollTop = 0;
+    }
+    if (gutterEl && gutterEl.scrollTop !== textareaEl.scrollTop) {
+      gutterEl.scrollTop = textareaEl.scrollTop;
+    }
+    scrollTop = textareaEl.scrollTop;
   }
 
   function updateCursorLine() {
@@ -111,6 +137,12 @@
 
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
     requestAnimationFrame(updateCursorLine);
+
+    // Мягко прижимаем оверскролл (PgDown/End в конце списка) к максимуму и
+    // передаём позицию в gutter сразу и после того, как браузер выполнит
+    // дефолтное действие клавиши.
+    clampOverscroll();
+    requestAnimationFrame(clampOverscroll);
   }
 
   onMount(() => {
@@ -136,7 +168,13 @@
 </script>
 
 <div class="editor-container" style="--editor-font: '{editorFont}', Consolas, monospace;">
-  <div class="editor-gutter" bind:this={gutterEl}>
+  <div
+    class="editor-gutter"
+    bind:this={gutterEl}
+    on:wheel|passive={(e) => {
+      if (textareaEl) textareaEl.scrollTop += e.deltaY;
+    }}
+  >
     <div class="gutter-inner">
       {#each lines as _, idx}
         <div
@@ -212,6 +250,8 @@
     box-sizing: border-box;
     flex-shrink: 0;
     user-select: none;
+    cursor: default;
+    pointer-events: auto;
   }
 
   .gutter-inner {
