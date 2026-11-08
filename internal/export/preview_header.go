@@ -108,6 +108,7 @@ const previewHTMLHeader = `<!DOCTYPE html>
   table.section-table, table.items-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
     margin-top: 1mm;
     margin-bottom: 2.5mm;
   }
@@ -119,12 +120,16 @@ const previewHTMLHeader = `<!DOCTYPE html>
     font-weight: bold;
     text-align: center;
     vertical-align: middle;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   table.section-table td, table.items-table td {
     border: 1px solid #000000;
     padding: 4px 5px;
     font-size: 9pt;
     vertical-align: middle;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   thead {
     display: table-header-group;
