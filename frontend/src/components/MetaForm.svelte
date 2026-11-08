@@ -49,8 +49,10 @@
       <label for="dept">Подразделение</label>
       <input id="dept" type="text" placeholder="Цех 3" bind:value={meta.dept} on:input={onFieldChange} />
     </div>
+  </div>
 
-    <div class="form-group col-shop">
+  <div class="form-row full-width">
+    <div class="form-group">
       <label for="shopName">Пункт назначения</label>
       <input id="shopName" type="text" placeholder="Механосборочный цех № 3" bind:value={meta.shopName} on:input={onFieldChange} />
     </div>
@@ -119,17 +121,19 @@
     gap: 8px;
     align-items: flex-end;
   }
+  .split-half {
+    flex-wrap: wrap;
+  }
   .split-half .form-group {
-    flex: 1 1 50%;
+    flex: 1 1 160px;
   }
   .full-width .form-group {
     flex: 1 1 100%;
   }
-  .col-small { width: 75px; flex-shrink: 0; }
-  .col-date { width: 140px; flex-shrink: 0; }
-  .col-dept { width: 120px; flex-shrink: 0; }
-  .col-shop { flex: 1; }
-  .col-flex-1 { flex: 1; }
+  .col-small { width: 75px; min-width: 65px; flex-shrink: 0; }
+  .col-date { width: 135px; min-width: 130px; flex-shrink: 0; }
+  .col-dept { flex: 1; min-width: 110px; }
+  .col-flex-1 { flex: 1; min-width: 150px; }
   .form-group {
     display: flex;
     flex-direction: column;
@@ -140,6 +144,9 @@
     text-transform: uppercase;
     color: var(--ctp-subtext0);
     letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   input {
     height: 26px;
@@ -152,6 +159,7 @@
     outline: none;
     transition: border-color 0.15s;
     width: 100%;
+    min-width: 0;
   }
   input:focus {
     border-color: var(--ctp-blue);
