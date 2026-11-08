@@ -9,22 +9,32 @@
   const ZOOM_STEP = 10;
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
-  // Высота одного листа А4 при 96 dpi — резерв до первой синхронизации размеров
-  const A4_HEIGHT_PX = Math.round((297 / 25.4) * 96);
-  const A4_WIDTH_MM = 210;
+  // Масштаб ленты листов передаётся CSS-переменной в документ предпросмотра
+  const ZOOM_VAR = '--zoom-level';
+  const SCALE_WRAPPER_CLASS = 'a4-scale-wrapper';
 
   let zoomLevel: number = 100;
   let iframeEl: HTMLIFrameElement;
   let renderTimer: number | null = null;
   let pendingHtml: string = '';
   let renderedHtml: string = '';
-  let sheetHeight: number = 0;
 
   $: scale = zoomLevel / 100;
-  $: stageHeight = Math.max(Math.round(sheetHeight * scale), Math.round(A4_HEIGHT_PX * scale));
 
   $: if (iframeEl && previewHtml && previewHtml !== renderedHtml) {
     scheduleRender(previewHtml);
+  }
+
+  // Зум меняет только CSS-переменную документа предпросмотра: перезаписи тяжёлого
+  // документа и пересчёта стилей body не происходит
+  $: if (iframeEl && scale) {
+    applyZoom(scale);
+  }
+
+  function applyZoom(value: number) {
+    const doc = iframeEl?.contentDocument;
+    if (!doc || !doc.documentElement) return;
+    doc.documentElement.style.setProperty(ZOOM_VAR, String(value));
   }
 
   // scheduleRender откладывает перезапись документа предпросмотра на RENDER_DEBOUNCE_MS,
@@ -48,27 +58,56 @@
   function updateIframeContent(htmlContent: string) {
     if (!iframeEl) return;
     const doc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(htmlContent);
-      doc.close();
-      renderedHtml = htmlContent;
-      // Документ рендерится дискретными листами А4: iframe растягивается на все листы,
-      // а разбиение на страницы выполняет движок печати.
-      window.setTimeout(fitIframeHeight, 60);
+    if (!doc) return;
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+    renderedHtml = htmlContent;
+
+    ensureScaleWrapper(doc);
+    applyZoom(scale);
+    // Ctrl + колесо мыши над листом: масштаб без перезагрузки документа
+    doc.addEventListener('wheel', handleInnerWheel, { passive: false });
+  }
+
+  // ensureScaleWrapper оборачивает ленту листов в единый масштабируемый контейнер,
+  // не создавая второго скролла: скроллбаром владеет только body документа предпросмотра
+  function ensureScaleWrapper(doc: Document): HTMLElement | null {
+    const body = doc.body;
+    if (!body) return null;
+
+    const first = body.firstElementChild as HTMLElement | null;
+    if (first && first.classList.contains(SCALE_WRAPPER_CLASS)) {
+      return first;
+    }
+
+    const wrapper = doc.createElement('div');
+    wrapper.className = SCALE_WRAPPER_CLASS;
+    while (body.firstChild) {
+      wrapper.appendChild(body.firstChild);
+    }
+    body.appendChild(wrapper);
+
+    return wrapper;
+  }
+
+  function handleInnerWheel(e: WheelEvent) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      zoomIn();
+    } else {
+      zoomOut();
     }
   }
 
-  // fitIframeHeight растягивает iframe по фактической высоте ленты листов А4
-  function fitIframeHeight() {
-    if (!iframeEl) return;
-    const doc = iframeEl.contentDocument;
-    if (!doc || !doc.body) return;
-    const contentHeight = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-    if (contentHeight > 0) {
-      sheetHeight = contentHeight;
-      iframeEl.style.height = `${contentHeight}px`;
-    }
+  function handleIframeLoad() {
+    // После (пере)загрузки документа масштабируемая обёртка и масштаб восстанавливаются
+    const doc = iframeEl?.contentDocument;
+    if (!doc) return;
+    ensureScaleWrapper(doc);
+    applyZoom(scale);
   }
 
   function zoomIn() {
@@ -128,22 +167,15 @@
     </div>
   </div>
 
-  <!-- Область отображения ленты листов А4: масштаб применяется к внутреннему
-       контейнеру страниц через transform: scale, стили документа не пересчитываются -->
+  <!-- Область предпросмотра занимает всю ширину и высоту панели: iframe растянут на 100%,
+       а единственный скроллбар живёт на body документа внутри него (правый край панели) -->
   <div class="sheet-viewport">
-    <div class="a4-zoom-box" style="width: calc({A4_WIDTH_MM}mm * {scale}); height: {stageHeight}px;">
-      <div
-        class="a4-sheet-container"
-        style="transform: scale({scale}) translateZ(0); transform-origin: top left; will-change: transform;"
-      >
-        <iframe
-          bind:this={iframeEl}
-          on:load={fitIframeHeight}
-          title="Предпросмотр заявки A4"
-          class="a4-sheet"
-        ></iframe>
-      </div>
-    </div>
+    <iframe
+      bind:this={iframeEl}
+      on:load={handleIframeLoad}
+      title="Предпросмотр заявки A4"
+      class="a4-sheet"
+    ></iframe>
   </div>
 </div>
 
@@ -151,6 +183,7 @@
   .preview-panel {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: 100%;
     background-color: var(--ctp-crust);
     overflow: hidden;
@@ -159,6 +192,7 @@
   }
 
   .preview-toolbar {
+    flex: 0 0 auto;
     height: 36px;
     background-color: var(--ctp-mantle);
     border-bottom: 1px solid var(--ctp-surface0);
@@ -215,41 +249,26 @@
     border-color: var(--ctp-surface2);
   }
 
+  /* Область предпросмотра: вся доступная ширина и высота правой панели.
+     Здесь нет прокрутки — скроллбаром владеет документ внутри iframe,
+     поэтому он всегда расположен у правого края панели. */
   .sheet-viewport {
-    flex: 1;
-    overflow: auto;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 24px 16px;
-    /* Собственный слой композиции: плавный скролл длинной ленты листов */
-    will-change: transform;
-    transform: translateZ(0);
-  }
-
-  /* Коробка резервирует место под масштабированную ленту, чтобы скроллбар был корректным */
-  .a4-zoom-box {
-    flex: 0 0 auto;
-    display: flex;
-    justify-content: center;
-  }
-
-  .a4-sheet-container {
-    transition: transform 0.1s ease-out;
-    display: flex;
-    justify-content: center;
-    will-change: transform;
-    backface-visibility: hidden;
-  }
-
-  /* Лента дискретных листов: ширина 210 мм, высота синхронизируется по содержимому */
-  .a4-sheet {
-    width: 210mm;
-    min-height: 297mm;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
     background-color: #2b2d3a;
-    border: none;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-    border-radius: 2px;
+  }
+
+  /* iframe растянут на всю область: колесо мыши над листом и над тёмными полями
+     прокручивает один и тот же документ — без двойного скролла и заеданий */
+  .a4-sheet {
     display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: #2b2d3a;
   }
 </style>

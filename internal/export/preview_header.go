@@ -19,22 +19,48 @@ const previewHTMLHeader = `<!DOCTYPE html>
   html {
     margin: 0;
     padding: 0;
+    height: 100%;
+    /* Масштаб ленты листов: значение задаёт панель предпросмотра */
+    --zoom-level: 1;
   }
-  /* ===== Экранный режим: вертикальная лента дискретных листов на тёмном фоне ===== */
+  /* ===== Экранный режим ===== */
+  /* overflow-y на body наследуется вьюпортом iframe: документ прокручивается
+     единственным скроллбаром у правого края панели, двойного скролла нет */
   body {
     background-color: #2b2d3a;
     margin: 0;
     padding: 24px 0;
+    width: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 20px;
+    overflow-y: auto;
     color: #000000;
     font-family: Calibri, Arial, sans-serif;
     font-size: 12pt;
     line-height: 1.15;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* ===== Масштабирование ленты листов ===== */
+  /* Обёртка задаёт фактическую (масштабированную) ширину ленты, поэтому листы
+     остаются строго центрированными, а скроллбар — у правого края панели.
+     margin: 0 auto центрирует ленту, пока хватает места, и прижимает её влево,
+     когда панель уже масштабированного листа: левый край не обрезается. */
+  .a4-scale-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    min-width: 100%;
+    width: calc(210mm * var(--zoom-level));
+    margin: 0 auto;
+    padding: 24px 0;
+    box-sizing: border-box;
   }
 
   /* ===== Дискретный лист А4: фиксированная геометрия и изоляция содержимого ===== */
@@ -50,6 +76,12 @@ const previewHTMLHeader = `<!DOCTYPE html>
     page-break-after: always;
     break-after: page;
     contain: layout paint;
+    /* Масштаб приходит CSS-переменной от панели предпросмотра. transform не влияет
+       на раскладку, поэтому нижний отступ компенсирует высоту листа до
+       масштабированной (297 мм * zoom) — прокрутка знает реальный размер ленты. */
+    transform-origin: top center;
+    transform: scale(var(--zoom-level));
+    margin-bottom: calc(297mm * (var(--zoom-level) - 1));
   }
 
   /* ===== Строгая 6-колоночная сетка 1С/Excel (A-F), базовая ширина 190 мм ===== */
@@ -170,11 +202,27 @@ const previewHTMLHeader = `<!DOCTYPE html>
 
   /* ===== Печать: листы стыкуются без экранной косметики ===== */
   @media print {
+    html {
+      height: auto;
+      --zoom-level: 1;
+    }
     body {
       background: transparent;
       padding: 0;
       gap: 0;
+      width: auto;
+      min-height: 0;
       display: block;
+      overflow: visible !important;
+    }
+    /* Масштаб и центрирующая обёртка при печати отключаются */
+    .a4-scale-wrapper {
+      display: block;
+      width: auto;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      transform: none;
     }
     .a4-page {
       box-shadow: none;
@@ -186,6 +234,8 @@ const previewHTMLHeader = `<!DOCTYPE html>
       overflow: visible;
       page-break-after: always;
       break-after: page;
+      /* Экранный масштаб (inline-переменная) при печати не применяется */
+      transform: none;
     }
     /* Последний лист не должен порождать пустую страницу */
     .a4-page:last-child {
