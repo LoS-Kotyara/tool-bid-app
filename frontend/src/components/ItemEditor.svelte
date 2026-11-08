@@ -158,6 +158,42 @@
       dispatch('redo');
     }
 
+    // PgDown/PgUp перехватываем полностью: WebView2 при нативной прокрутке двигает
+    // каретку через внутренний scrollIntoView и допускает оверскролл текста мимо
+    // предела Gutter. Шаг считаем сами и сразу выравниваем номера строк.
+    if (e.code === 'PageDown') {
+      e.preventDefault();
+      if (textareaEl && gutterEl) {
+        const pageSize = Math.max(lineHeight, textareaEl.clientHeight - lineHeight * 2);
+        const maxAllowed = Math.max(0, gutterEl.scrollHeight - gutterEl.clientHeight);
+        textareaEl.scrollTop = Math.min(maxAllowed, textareaEl.scrollTop + pageSize);
+        gutterEl.scrollTop = textareaEl.scrollTop;
+        scrollTop = textareaEl.scrollTop;
+        requestAnimationFrame(updateCursorLine);
+      }
+      return;
+    }
+
+    if (e.code === 'PageUp') {
+      e.preventDefault();
+      if (textareaEl && gutterEl) {
+        const pageSize = Math.max(lineHeight, textareaEl.clientHeight - lineHeight * 2);
+        textareaEl.scrollTop = Math.max(0, textareaEl.scrollTop - pageSize);
+        gutterEl.scrollTop = textareaEl.scrollTop;
+        scrollTop = textareaEl.scrollTop;
+        requestAnimationFrame(updateCursorLine);
+      }
+      return;
+    }
+
+    // Home/End без Ctrl — оставляем нативное поведение каретки, но гарантируем
+    // выравнивание Gutter после того, как браузер прокрутит textarea.
+    if (!e.ctrlKey && !e.metaKey && (e.code === 'Home' || e.code === 'End')) {
+      requestAnimationFrame(() => {
+        if (gutterEl && textareaEl) gutterEl.scrollTop = textareaEl.scrollTop;
+      });
+    }
+
     if (textareaEl && textareaEl.scrollLeft !== 0) textareaEl.scrollLeft = 0;
     requestAnimationFrame(updateCursorLine);
 
