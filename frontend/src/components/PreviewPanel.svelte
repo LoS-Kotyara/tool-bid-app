@@ -18,8 +18,13 @@
   let renderTimer: number | null = null;
   let pendingHtml: string = '';
   let renderedHtml: string = '';
+  // Постраничный показ: на экране виден ровно один лист (как в эталоне bid_app_gui.py)
+  let currentPage: number = 1;
+  let totalPages: number = 1;
 
   $: scale = zoomLevel / 100;
+  $: canPrev = currentPage > 1;
+  $: canNext = currentPage < totalPages;
 
   $: if (iframeEl && previewHtml && previewHtml !== renderedHtml) {
     scheduleRender(previewHtml);
@@ -35,6 +40,52 @@
     const doc = iframeEl?.contentDocument;
     if (!doc || !doc.documentElement) return;
     doc.documentElement.style.setProperty(ZOOM_VAR, String(value));
+  }
+
+  // showPage оставляет видимым единственный лист: снимает active со всех страниц
+  // документа предпросмотра, помечает нужную и синхронизирует счётчик в тулбаре
+  function showPage(pageNum: number, resetScroll: boolean = true) {
+    const doc = iframeEl?.contentDocument;
+    if (!doc) return;
+
+    const pages = Array.from(doc.querySelectorAll<HTMLElement>('.a4-page'));
+    if (pages.length === 0) {
+      totalPages = 1;
+      currentPage = 1;
+      return;
+    }
+
+    totalPages = pages.length;
+    const target = Math.min(Math.max(Math.round(pageNum), 1), pages.length);
+
+    pages.forEach((page) => page.classList.remove('active'));
+    const page = doc.getElementById(`page-${target}`) ?? pages[target - 1];
+    if (page) {
+      page.classList.add('active');
+    }
+
+    currentPage = target;
+    if (resetScroll) {
+      scrollDocumentToTop(doc);
+    }
+  }
+
+  // scrollDocumentToTop возвращает прокрутку к началу листа при смене страницы
+  function scrollDocumentToTop(doc: Document) {
+    doc.documentElement.scrollTop = 0;
+    doc.documentElement.scrollLeft = 0;
+    if (doc.body) {
+      doc.body.scrollTop = 0;
+      doc.body.scrollLeft = 0;
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 1) showPage(currentPage - 1);
+  }
+
+  function nextPage() {
+    if (currentPage < totalPages) showPage(currentPage + 1);
   }
 
   // scheduleRender откладывает перезапись документа предпросмотра на RENDER_DEBOUNCE_MS,
@@ -67,6 +118,9 @@
 
     ensureScaleWrapper(doc);
     applyZoom(scale);
+    // Число листов пересчитывается, активная страница сохраняется (или усекается,
+    // если после правки листов стало меньше)
+    showPage(currentPage, false);
     // Ctrl + колесо мыши над листом: масштаб без перезагрузки документа
     doc.addEventListener('wheel', handleInnerWheel, { passive: false });
   }
@@ -103,11 +157,13 @@
   }
 
   function handleIframeLoad() {
-    // После (пере)загрузки документа масштабируемая обёртка и масштаб восстанавливаются
+    // После (пере)загрузки документа масштабируемая обёртка, масштаб и активный
+    // лист восстанавливаются
     const doc = iframeEl?.contentDocument;
     if (!doc) return;
     ensureScaleWrapper(doc);
     applyZoom(scale);
+    showPage(currentPage, false);
   }
 
   function zoomIn() {
@@ -149,8 +205,22 @@
 </script>
 
 <div class="preview-panel" on:wheel={handleWheel}>
-  <!-- Тулбар превью: масштаб и печать (пагинация выполняется в самом документе) -->
+  <!-- Тулбар превью: постраничная навигация, масштаб и печать -->
   <div class="preview-toolbar">
+    <div class="toolbar-group">
+      <button
+        class="tool-btn"
+        title="Предыдущая страница"
+        disabled={!canPrev}
+        on:click={prevPage}>◀</button>
+      <span class="page-indicator">Стр. {currentPage} из {totalPages}</span>
+      <button
+        class="tool-btn"
+        title="Следующая страница"
+        disabled={!canNext}
+        on:click={nextPage}>▶</button>
+    </div>
+
     <div class="toolbar-group">
       <button class="tool-btn" title="Уменьшить (Ctrl + Колесо вниз)" on:click={zoomOut}>−</button>
       <button class="tool-btn zoom-text" title="Сбросить масштаб (100%)" on:click={zoomReset}>
@@ -237,6 +307,16 @@
   .zoom-text {
     min-width: 50px;
     font-size: 9.5pt;
+  }
+
+  /* Счётчик страниц: «Стр. X из Y» (эталон bid_app_gui.py) */
+  .page-indicator {
+    font-size: 9.5pt;
+    color: var(--ctp-subtext1);
+    text-align: center;
+    min-width: 92px;
+    padding: 0 2px;
+    white-space: nowrap;
   }
 
   .print-btn {

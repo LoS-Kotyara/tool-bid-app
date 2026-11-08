@@ -58,13 +58,16 @@ const previewHTMLHeader = `<!DOCTYPE html>
     flex: 0 0 auto;
     min-width: 100%;
     width: calc(210mm * var(--zoom-level));
-    margin: 0 auto;
+    /* auto по вертикали: активный лист центрируется по центру экрана, пока он
+       меньше видимой области, и остаётся доступным сверху при увеличении */
+    margin: auto;
     padding: 24px 0;
     box-sizing: border-box;
   }
 
-  /* ===== Дискретный лист А4: фиксированная геометрия и изоляция содержимого ===== */
+  /* ===== Дискретный лист А4: на экране виден только активный лист ===== */
   .a4-page {
+    display: none;
     width: 210mm;
     height: 297mm;
     max-height: 297mm;
@@ -78,10 +81,14 @@ const previewHTMLHeader = `<!DOCTYPE html>
     contain: layout paint;
     /* Масштаб приходит CSS-переменной от панели предпросмотра. transform не влияет
        на раскладку, поэтому нижний отступ компенсирует высоту листа до
-       масштабированной (297 мм * zoom) — прокрутка знает реальный размер ленты. */
+       масштабированной (297 мм * zoom) — прокрутка знает реальный размер листа. */
     transform-origin: top center;
     transform: scale(var(--zoom-level));
     margin-bottom: calc(297mm * (var(--zoom-level) - 1));
+  }
+  /* В режиме экрана отображается только активная страница */
+  .a4-page.active {
+    display: block !important;
   }
 
   /* ===== Строгая 6-колоночная сетка 1С/Excel (A-F), базовая ширина 190 мм ===== */
@@ -143,6 +150,14 @@ const previewHTMLHeader = `<!DOCTYPE html>
     vertical-align: middle;
     padding: 4px 6px;
   }
+  /* Подчеркивание номера заявки (D1:F1) */
+  .bid-number-underline {
+    border-bottom: 1px solid #000000 !important;
+  }
+  /* Рамка вокруг наименования подразделения (D3:F3) */
+  .dept-box-border {
+    border: 1.5pt solid #000000 !important;
+  }
 
   /* ===== Сетка подписантов ===== */
   .sign-table {
@@ -200,15 +215,16 @@ const previewHTMLHeader = `<!DOCTYPE html>
     padding: 8px 4px;
   }
 
-  /* ===== Печать: листы стыкуются без экранной косметики ===== */
+  /* ===== Печать: показываются ВСЕ листы подряд без экранной косметики ===== */
   @media print {
     html {
       height: auto;
       --zoom-level: 1;
     }
     body {
-      background: transparent;
-      padding: 0;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
       gap: 0;
       width: auto;
       min-height: 0;
@@ -225,22 +241,23 @@ const previewHTMLHeader = `<!DOCTYPE html>
       transform: none;
     }
     .a4-page {
-      box-shadow: none;
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      max-height: none;
-      padding: 0;
+      display: block !important;
+      box-shadow: none !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-height: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
       overflow: visible;
-      page-break-after: always;
-      break-after: page;
+      page-break-after: always !important;
+      break-after: page !important;
       /* Экранный масштаб (inline-переменная) при печати не применяется */
       transform: none;
     }
     /* Последний лист не должен порождать пустую страницу */
     .a4-page:last-child {
-      page-break-after: auto;
-      break-after: auto;
+      page-break-after: auto !important;
+      break-after: auto !important;
     }
   }
 </style>

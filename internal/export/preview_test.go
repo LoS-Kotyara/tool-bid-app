@@ -173,9 +173,9 @@ func TestPreviewHTMLHeaderCellsUseGridPlacement(t *testing.T) {
 
 	assertPreviewContains(t, htmlStr, []string{
 		`<td class="doc-title">Заявка на закупку</td>`,
-		`<td class="bid-number" colspan="3">№52 от 11.06.2026</td>`,
+		`<td class="bid-number bid-number-underline" colspan="3" style="text-align: left; vertical-align: middle;">№52 от 11.06.2026</td>`,
 		`<td class="dept-label">ПОДРАЗДЕЛЕНИЕ</td>`,
-		`<td class="dept-box" colspan="3">Цех 3</td>`,
+		`<td class="dept-box dept-box-border" colspan="3" style="text-align: left; vertical-align: middle; padding: 2px 6px;">Цех 3</td>`,
 		`<td class="boxed" colspan="2">ИНИЦИАТОР ЗАКУПКИ</td>`,
 		`<td class="boxed" colspan="2">КУРАТОР ЗАКУПКИ</td>`,
 	})
@@ -184,13 +184,15 @@ func TestPreviewHTMLHeaderCellsUseGridPlacement(t *testing.T) {
 	assertPreviewContains(t, htmlStr, []string{
 		".bid-number {\n    border-bottom: 1px solid #000000;",
 		".dept-box {\n    border: 1.5pt solid #000000;",
+		".bid-number-underline {\n    border-bottom: 1px solid #000000 !important;",
+		".dept-box-border {\n    border: 1.5pt solid #000000 !important;",
 	})
 }
 
 
 // countPreviewPages считает количество дискретных листов А4 в готовом HTML
 func countPreviewPages(htmlStr string) int {
-	return strings.Count(htmlStr, `class="a4-page"`)
+	return strings.Count(htmlStr, `class="a4-page`)
 }
 
 // makePreviewItems формирует n позиций спецификации с последовательной нумерацией
@@ -224,9 +226,15 @@ func TestPreviewHTMLHasNoFootersOrPageNumbers(t *testing.T) {
 
 	// Каждый лист — самостоятельный контейнер, разрыв страницы задаётся самим листом
 	assertPreviewContains(t, htmlStr, []string{
-		`<div class="a4-page" id="page-1">`,
+		`<div class="a4-page active" id="page-1" data-page="1">`,
 		"page-break-after: always;",
 		"break-after: page;",
+	})
+
+	// На экране виден только активный лист, при печати — все листы подряд
+	assertPreviewContains(t, htmlStr, []string{
+		".a4-page {\n    display: none;",
+		".a4-page.active {\n    display: block !important;",
 	})
 
 	// Две позиции помещаются на единственный лист
@@ -255,7 +263,7 @@ func TestPreviewHTMLDiscretePageGeometry(t *testing.T) {
 	})
 
 	// На экране каждый лист отделён тенью, при печати тень снимается
-	if count := strings.Count(htmlStr, "page-break-after: always;"); count != 2 {
+	if count := strings.Count(htmlStr, "page-break-after: always"); count != 2 {
 		t.Errorf("expected page-break-after on screen and print rules, got %d declarations", count)
 	}
 }
@@ -327,9 +335,9 @@ func TestPreviewHTMLRendersDiscretePagesWithRepeatedTableHeader(t *testing.T) {
 	}
 
 	assertPreviewContains(t, htmlStr, []string{
-		`<div class="a4-page" id="page-1">`,
-		`<div class="a4-page" id="page-2">`,
-		`<div class="a4-page" id="page-3">`,
+		`<div class="a4-page active" id="page-1" data-page="1">`,
+		`<div class="a4-page" id="page-2" data-page="2">`,
+		`<div class="a4-page" id="page-3" data-page="3">`,
 	})
 
 	// Шапка таблицы спецификации повторяется на каждом листе
@@ -404,8 +412,8 @@ func TestPreviewHTMLUsesWhiteBackgroundOnly(t *testing.T) {
 	assertPreviewContains(t, htmlStr, []string{
 		"background-color: #2b2d3a;",
 		"box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);",
-		"background: transparent;",
-		"box-shadow: none;",
+		"background: transparent !important;",
+		"box-shadow: none !important;",
 	})
 }
 
@@ -456,7 +464,7 @@ func TestPreviewHTMLDocumentStructureOrder(t *testing.T) {
 	body := htmlStr[bodyStart:]
 
 	assertPreviewOrder(t, body, []string{
-		`<div class="a4-page" id="page-1">`,
+		`<div class="a4-page active" id="page-1" data-page="1">`,
 		`<td class="doc-title">Заявка на закупку</td>`,
 		`ПОДРАЗДЕЛЕНИЕ`,
 		`Должность`,
@@ -512,7 +520,7 @@ func TestPreviewHTMLEmptyDocumentRendersDashes(t *testing.T) {
 	htmlStr := renderPreview(t, nil)
 
 	assertPreviewContains(t, htmlStr, []string{
-		`<td class="dept-box" colspan="3">—</td>`,
+		`<td class="dept-box dept-box-border" colspan="3" style="text-align: left; vertical-align: middle; padding: 2px 6px;">—</td>`,
 		"Позиции спецификации не добавлены",
 	})
 

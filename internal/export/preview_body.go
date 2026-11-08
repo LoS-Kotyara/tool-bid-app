@@ -8,7 +8,7 @@ package export
 const previewHTMLBody = `<body>
 {{range .Pages}}
 {{$meta := $.Meta}}
-<div class="a4-page" id="page-{{.PageNum}}">
+<div class="a4-page{{if .IsFirst}} active{{end}}" id="page-{{.PageNum}}" data-page="{{.PageNum}}">
 {{if .IsFirst}}
 
   <!-- ===== Шапка документа ===== -->
@@ -22,7 +22,7 @@ const previewHTMLBody = `<body>
       <tr>
         <td colspan="2"></td>
         <td class="doc-title">Заявка на закупку</td>
-        <td class="bid-number" colspan="3">№{{$meta.BidNum}} от {{$meta.BidDate}}</td>
+        <td class="bid-number bid-number-underline" colspan="3" style="text-align: left; vertical-align: middle;">№{{$meta.BidNum}} от {{$meta.BidDate}}</td>
       </tr>
       <tr class="spacer-row">
         <td colspan="6"></td>
@@ -30,7 +30,7 @@ const previewHTMLBody = `<body>
       <tr>
         <td colspan="2"></td>
         <td class="dept-label">ПОДРАЗДЕЛЕНИЕ</td>
-        <td class="dept-box" colspan="3">{{dash $meta.Dept}}</td>
+        <td class="dept-box dept-box-border" colspan="3" style="text-align: left; vertical-align: middle; padding: 2px 6px;">{{dash $meta.Dept}}</td>
       </tr>
     </tbody>
   </table>
